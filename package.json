@@ -24,6 +24,6 @@
     "torrent-stream": "^1.2.1"
   },
   "engines": {
-    "node": ">=16.9.1"
+    "node": "^16.9.1"
   }
 }

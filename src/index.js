@@ -8,7 +8,7 @@ const db = require('./schemas/userSchema')
 const {setAuth, listTeamDrive, driveInt} = require("./upload");
 const {download} = require('./download')
 
-dbCon.dbConnect().then()
+dbCon.dbConnect()
 
 const token = process.env.TELEGRAM_API
 
