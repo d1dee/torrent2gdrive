@@ -7,6 +7,7 @@ const {cron} = require("./cron-job");
 const db = require('./schemas/userSchema')
 const {setAuth, listTeamDrive, driveInt} = require("./upload");
 const {download} = require('./download')
+const userDb = require("./schemas/userSchema");
 
 dbCon.dbConnect()
 
@@ -19,6 +20,7 @@ bot.on('message', async (msg) => {
     try {
         let user = await db.findOne({id: msg.from.id}), chatId = msg.chat.id
         message = msg.text
+        console.log(message)
         if (user && user.token != null) await setAuth(msg, bot)
         if (message.toString().toLowerCase() === '/start' || msg.reply_to_message) {
             if (msg.reply_to_message && user.tokenMsg === msg.reply_to_message.message_id) {
@@ -54,7 +56,7 @@ bot.on('message', async (msg) => {
             let searched = (await movieIndex(message)).data
             if (searched.Response === 'False') {
                 await bot.sendMessage(chatId, 'No results found, please check for any typos\n <code>' + searched.Error + '</code>', {parse_mode: 'HTML'})
-                    .catch((err)=> console.log(err.message))
+                    .catch((err) => console.log(err.message))
                 return
             }
             try {
@@ -77,7 +79,7 @@ bot.on('message', async (msg) => {
                                     "text": "✈ More Info", "callback_data": imdb
                                 }]]
                             }
-                        }).catch((err)=> console.log(err.message))
+                        }).catch((err) => console.log(err.message))
 
                     }
 
@@ -90,7 +92,7 @@ bot.on('message', async (msg) => {
                                     "text": "⌚ Schedule ", "callback_data": '⌚ ' + imdb
                                 }, {"text": "✈ More Info", "callback_data": imdb}]]
                             }
-                        }).catch((err)=> console.log(err.message))
+                        }).catch((err) => console.log(err.message))
                     }
                     //if already released give option to download
                     else {
@@ -200,7 +202,16 @@ bot.on('inline_query', async (inlineQuery) => {
 
 bot.on('chosen_inline_result', async (chosen_Inline) => {
     try {
-        if (availableTorrents[chosen_Inline.result_id]) await download(availableTorrents[chosen_Inline.result_id].magnet, bot, chosen_Inline.from.id)
+        const {result_id, from} = chosen_Inline;
+        if (!await userDb.findOne({id: from.id, token: {$ne: null}})) {
+            await bot.sendMessage(chatId, 'You\'ll have to authenticate your account so as to be able access your downloads.');
+            await driveInt(chosen_Inline, bot)
+        } else {
+            if (availableTorrents[result_id]) {
+                const {magnet} = availableTorrents[result_id];
+                await download(magnet, bot, from.id)
+            }
+        }
     } catch (err) {
         console.log(err)
     }
