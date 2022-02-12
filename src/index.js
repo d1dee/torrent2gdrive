@@ -10,7 +10,7 @@ const {download} = require('./download')
 
 dbCon.dbConnect()
 
-const bot = new tgBot(process.env.TELEGRAM_API, {polling: false})
+const bot = new tgBot(process.env.TELEGRAM_API, {polling: true})
 
 let chatId, message
 var availableTorrents = []
