@@ -11,34 +11,30 @@ const userDb = require("./schemas/userSchema");
 
 dbCon.dbConnect()
 
-const bot = new tgBot(process.env.TELEGRAM_API, {polling: true})
+const {TELEGRAM_API} = process.env;
+const bot = new tgBot(TELEGRAM_API, {polling: true})
 
-let chatId, message
+let chatId, text
 var availableTorrents = []
 
 bot.on('message', async (msg) => {
     try {
-        let user = await db.findOne({id: msg.from.id}), chatId = msg.chat.id
-        message = msg.text
-        console.log(message)
-        if (user && user.token != null) await setAuth(msg, bot)
-        if (message.toString().toLowerCase() === '/start' || msg.reply_to_message) {
-            if (msg.reply_to_message && user.tokenMsg === msg.reply_to_message.message_id) {
-                await driveInt(msg, bot, user.tokenMsg)
-            } else if (!user || message.toString().toLowerCase() === '/start') {
+        const {chat, reply_to_message, text, from} = msg;
+        let {token, tokenMsg} = await db.findOne({id: from.id}), chatId = chat.id
+        if (token != null) await setAuth(msg, bot)
+        if (text.toString().toLowerCase() === '/start' || reply_to_message) {
+            const {message_id} = reply_to_message;
+            if (reply_to_message && tokenMsg === message_id) {
+                await driveInt(msg, bot, tokenMsg)
+            } else if (text.toString().toLowerCase() === '/start') {
                 await driveInt(msg, bot)
                 await bot.sendMessage(chatId, 'Welcome to Gdl', {
                     'reply_markup': {'replyKeyboard': [[{'text': '/inline'}]]}
                 })
             }
-        } else if (message.toString().toLowerCase() === '/team') {
-            await bot.sendMessage(chatId, 'Welcome to Gdl', {
-                "reply_markup": {
-                    "keyboard": [['/Start ', '/Scheduled'], ['/Inline', '/Help']], 'resize_keyboard': true
-                }
-            })
+        } else if (text.toString().toLowerCase() === '/list_team_drive'){
             await listTeamDrive(msg, bot)
-        } else if (message.toString().toLowerCase() === '/inline') {
+        } else if (text.toString().toLowerCase() === '/inline') {
             await bot.sendMessage(chatId, 'Click below to search using inline mode', {
                 reply_markup: {
                     inline_keyboard: [[{
@@ -46,14 +42,14 @@ bot.on('message', async (msg) => {
                     }]]
                 }
             })
-        } else if (message.toString().toLowerCase() === '/help') {
+        } else if (text.toString().toLowerCase() === '/help') {
             await bot.sendMessage(chatId, 'Help not yet imprinted, Sorry :(')
-        } else if (/^Downloading.*/ig.test(message) === true) {
+        } else if (/^Downloading.*/ig.test(text)) {
             //update progress
-        } else if (/^magnet:.*/ig.test(message) === true) {
-            await download(message, bot, chatId)
+        } else if (/^magnet:.*/ig.test(text)) {
+            await download(text, bot, chatId)
         } else {
-            let searched = (await movieIndex(message)).data
+            let searched = (await movieIndex(text)).data
             if (searched.Response === 'False') {
                 await bot.sendMessage(chatId, 'No results found, please check for any typos\n <code>' + searched.Error + '</code>', {parse_mode: 'HTML'})
                     .catch((err) => console.log(err.message))
@@ -115,24 +111,27 @@ bot.on('message', async (msg) => {
 })
 
 bot.on('callback_query', async (callback) => {
-    let callback_data = callback.data, callbackChatId = callback.from.id;
+    const {from: {id}, data} = callback;
 
-    if (/^⌚.*/ig.test(callback_data) === true) {
+    if (/^DriveId */ig.test(data)){
+        listTeamDrive(callback,bot,data.replace(/^DriveId /,''))
+    }
+    else if (/^⌚.*/ig.test(data)) {
         await schedule(callback, bot)
     } else {
-        let omdbResult = (await movieIndex(callback_data)).data;
+        let omdbResult = (await movieIndex(data)).data;
 
         try {
             let message = 'Title:\t' + omdbResult.Title + '\nReleased:\t' + omdbResult.Released + '\nRatings:\t' + omdbResult.imdbRating + '\nPlot:\t' + omdbResult.Plot
 
             if (Date.parse(omdbResult.Released) > Date.now()) {
-                await bot.sendMessage(callbackChatId, '<a href="' + omdbResult.Poster + '">\n</a>' + message, {
+                await bot.sendMessage(id, '<a href="' + omdbResult.Poster + '">\n</a>' + message, {
                     parse_mode: 'HTML', cache_time: 0, "reply_markup": {
-                        "inline_keyboard": [[{"text": "⌚ Schedule", "callback_data": '⌚ ' + callback_data}]]
+                        "inline_keyboard": [[{"text": "⌚ Schedule", "callback_data": '⌚ ' + data}]]
                     }
                 })
             } else {
-                await bot.sendMessage(callbackChatId, '<a href="' + omdbResult.Poster + '">\n</a>' + message, {
+                await bot.sendMessage(id, '<a href="' + omdbResult.Poster + '">\n</a>' + message, {
                     parse_mode: 'HTML', cache_time: 0, "reply_markup": {
                         "inline_keyboard": [[{
                             "text": "⏬ Download ", "switch_inline_query_current_chat": omdbResult.Title
@@ -146,9 +145,8 @@ bot.on('callback_query', async (callback) => {
     }
 })
 
-bot.on('inline_query', async (inlineQuery) => {
-    chatId = inlineQuery.from.id
-    let queryId = inlineQuery.id, query = inlineQuery.query, result, inlineQueryResult = []
+bot.on('inline_query', async ({id: queryId, query}) => {
+    let result, inlineQueryResult = []
     try {
         if (!query || query.length < 3) {
             ///limiting searching to for fewer characters to avoid waste of processing power and reduce que
@@ -202,14 +200,14 @@ bot.on('inline_query', async (inlineQuery) => {
 
 bot.on('chosen_inline_result', async (chosen_Inline) => {
     try {
-        const {result_id, from} = chosen_Inline;
-        if (!await userDb.findOne({id: from.id, token: {$ne: null}})) {
+        const {result_id, from: {id}} = chosen_Inline;
+        if (!await userDb.findOne({id: id, token: {$ne: null}})) {
             await bot.sendMessage(chatId, 'You\'ll have to authenticate your account so as to be able access your downloads.');
             await driveInt(chosen_Inline, bot)
         } else {
             if (availableTorrents[result_id]) {
                 const {magnet} = availableTorrents[result_id];
-                await download(magnet, bot, from.id)
+                await download(magnet, bot, id)
             }
         }
     } catch (err) {

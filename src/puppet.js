@@ -21,7 +21,6 @@ const uAgent = {
 
 exports.movieIndex = async (query) => {
     try {
-
         if (/^tt/gmi.test(query) === true) {
             return await axios.get('http://www.omdbapi.com/?i=' + encodeURI(query) + '&plot=full&apikey=' + omdbapi);
         } else if (/[0-9]{4}/gmi.test(query) === true) {

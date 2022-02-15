@@ -14,10 +14,11 @@ exports.cron = async (bot) => {
         try {
             let toDownload = await db.find({release_date: {$lte: Date.now()}})
             for (let i = 0; i < toDownload.length; i++) {
-                if (toDownload[i].type === 'movie') {
+                const {title, imdbID, type, _id, userID} = toDownload[i];
+                if (type === 'movie') {
                     i++
-                } else if (toDownload[i].type === 'series') {
-                    await axios.get('https://api.themoviedb.org/3/find/' + toDownload[i].imdbID + '?api_key=' + process.env.tmdb_API + '&language=en-US&external_source=imdb_id')
+                } else if (type === 'series') {
+                    await axios.get('https://api.themoviedb.org/3/find/' + imdbID + '?api_key=' + process.env.tmdb_API + '&language=en-US&external_source=imdb_id')
                         .then(async (res) => {
                             await axios.get('https://api.themoviedb.org/3/tv/' + res.data.tv_results[0].id + '?api_key=' + process.env.tmdb_API + '&language=en-US')
                                 .then(async (res) => {
@@ -31,7 +32,7 @@ exports.cron = async (bot) => {
                             console.log('Error', err.message);
                         })
                     if (!tv_show) {
-                        await bot.sendMessage(toDownload[i].userID, `Cron job couldn't find  any result on ${toDownload[i].title}`)
+                        await bot.sendMessage(userID, `Cron job couldn't find  any result on ${title}`)
                             .catch((err) => console.log(err.message))
                         continue
                     }
@@ -47,7 +48,7 @@ exports.cron = async (bot) => {
                     if (!in_production) {
                         lastEpisode = last_episode_to_air.air_date
                         lastEpisodeAired = seasonEpisode(last_episode_to_air.season_number, last_episode_to_air.episode_number)
-                        await db.updateOne({_id: toDownload[i]._id}, {
+                        await db.updateOne({_id: _id}, {
                             release_date: first_air_date,
                             complete: true,
                             number_of_seasons: number_of_seasons,
@@ -62,7 +63,7 @@ exports.cron = async (bot) => {
                             nextEpisode = next_episode_to_air.air_date
                             nextEpisodeAired = seasonEpisode(next_episode_to_air.season_number, next_episode_to_air.episode_number)
                         }
-                        await db.updateOne({_id: toDownload[i]._id}, {
+                        await db.updateOne({_id: _id}, {
                             release_date: first_air_date, episode: {
                                 lastEpisodeDate: lastEpisode,
                                 nextEpisodeDate: nextEpisode,
