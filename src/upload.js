@@ -170,7 +170,6 @@ exports.listTeamDrive = async (msg, bot, driveId) => {
 exports.upload = async (torrent, chatId, bot, _id) => {
 
     try {
-        console.log('upload called')
         let user = await userDb.findOne({id: chatId, token: {$ne: null}}), fileArray = [],
             torPath = path.join(__dirname, 'downloads', torrent.name)
         const {token, driveId} = user;
@@ -204,7 +203,8 @@ exports.upload = async (torrent, chatId, bot, _id) => {
         } else if (fs.statSync(torPath).isFile()) {
             await uploadFile(torPath, torrent.name)
         }
-
+         console.log(fileArray, 'upload called')
+        
         //create folder for the torrent
         async function makeDir(dirName, parent) {
             if (!parent) parent = driveId
