@@ -263,7 +263,7 @@ exports.upload = async (torrent, chatId, bot, _id) => {
                 await fs.rm(torPath, {recursive: true, force: true}, async () => {
                     await bot.editMessageText(`Upload done for ${name}`, {
                         chat_id: chatId, message_id: msgEdit.message_id
-                    }).catch(err => console.log(err.message))
+                    }).catch(err => console.log(err))
                 })
                 if (_id) {
                     await db.findOne({_id: _id})
@@ -277,7 +277,7 @@ exports.upload = async (torrent, chatId, bot, _id) => {
                                     fileName: name,
                                 }
                             }).catch((err) => {
-                                console.log(err.message)
+                                console.log(err)
                             })
                         })
                 }
@@ -293,7 +293,7 @@ exports.upload = async (torrent, chatId, bot, _id) => {
                 force_reply: true,
                 input_field_placeholder: '/start'
             })
-                .catch(err => console.log(err.message))
+                .catch(err => console.log(err))
         }
 
     }
