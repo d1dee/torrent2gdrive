@@ -23,8 +23,7 @@ bot.on('message', async (msg) => {
         let {token, tokenMsg} = await db.findOne({id: from.id}), chatId = chat.id
         if (token != null) await setAuth(msg, bot)
         if (text.toString().toLowerCase() === '/start' || reply_to_message) {
-            const {message_id} = reply_to_message;
-            if (reply_to_message && tokenMsg === message_id) {
+            if (reply_to_message && tokenMsg === reply_to_message.message_id) {
                 await driveInt(msg, bot, tokenMsg)
             } else if (text.toString().toLowerCase() === '/start') {
                 await driveInt(msg, bot)
