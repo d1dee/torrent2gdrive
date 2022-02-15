@@ -70,7 +70,7 @@ exports.download = async (magnet, bot, chatId, _id) => {
             })
         })
     } catch (err) {
-        console.log(err.message)
+        console.log(err)
     }
 
 }
