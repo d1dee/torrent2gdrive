@@ -253,12 +253,12 @@ exports.upload = async (torrent, chatId, bot, _id) => {
                         const {msgEdit, name} = torrent;
                         bot.editMessageText(`Upload failed for ${name} retrying...`, {
                             chat_id: chatId, message_id: msgEdit.message_id
-                        }).catch(err => console.log(err.message))
-                        console.log(err.message)
+                        }).catch(err => console.log(err))
+                        console.log(err)
                     }
                 }, retry: true
             }, async (err) => {
-                if (err) return console.log(err.message)
+                if (err) return console.log(err)
                 const {msgEdit, name} = torrent;
                 await fs.rm(torPath, {recursive: true, force: true}, async () => {
                     await bot.editMessageText(`Upload done for ${name}`, {
