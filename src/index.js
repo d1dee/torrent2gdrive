@@ -14,27 +14,26 @@ dbCon.dbConnect()
 const {TELEGRAM_API} = process.env;
 const bot = new tgBot(TELEGRAM_API, {polling: true})
 
-let chatId, text
 var availableTorrents = []
 
 bot.on('message', async (msg) => {
     try {
         const {chat, reply_to_message, text, from} = msg;
-        let {token, tokenMsg} = await db.findOne({id: from.id}), chatId = chat.id
+        let {token, tokenMsg} = await db.findOne({id: from.id})
         if (token != null) await setAuth(msg, bot)
         if (text.toString().toLowerCase() === '/start' || reply_to_message) {
             if (reply_to_message && tokenMsg === reply_to_message.message_id) {
                 await driveInt(msg, bot, tokenMsg)
             } else if (text.toString().toLowerCase() === '/start') {
                 await driveInt(msg, bot)
-                await bot.sendMessage(chatId, 'Welcome to Gdl', {
+                await bot.sendMessage(chat.id, 'Welcome to Gdl', {
                     'reply_markup': {'replyKeyboard': [[{'text': '/inline'}]]}
                 })
             }
         } else if (text.toString().toLowerCase() === '/list_team_drive'){
             await listTeamDrive(msg, bot)
         } else if (text.toString().toLowerCase() === '/inline') {
-            await bot.sendMessage(chatId, 'Click below to search using inline mode', {
+            await bot.sendMessage(chat.id, 'Click below to search using inline mode', {
                 reply_markup: {
                     inline_keyboard: [[{
                         text: 'Inline search', switch_inline_query_current_chat: ''
@@ -42,15 +41,15 @@ bot.on('message', async (msg) => {
                 }
             })
         } else if (text.toString().toLowerCase() === '/help') {
-            await bot.sendMessage(chatId, 'Help not yet imprinted, Sorry :(')
+            await bot.sendMessage(chat.id, 'Help not yet imprinted, Sorry :(')
         } else if (/^Downloading.*/ig.test(text)) {
             //update progress
         } else if (/^magnet:.*/ig.test(text)) {
-            await download(text, bot, chatId)
+            await download(text, bot, chat.id)
         } else {
             let searched = (await movieIndex(text)).data
             if (searched.Response === 'False') {
-                await bot.sendMessage(chatId, 'No results found, please check for any typos\n <code>' + searched.Error + '</code>', {parse_mode: 'HTML'})
+                await bot.sendMessage(chat.id, 'No results found, please check for any typos\n <code>' + searched.Error + '</code>', {parse_mode: 'HTML'})
                     .catch((err) => console.log(err.message))
                 return
             }
@@ -66,7 +65,7 @@ bot.on('message', async (msg) => {
                     if (type === 'game') {
                         i++
                     } else if (/\d$/.test((more_info.data.Year).toString()) === false) {
-                        await bot.sendMessage(chatId, message, {
+                        await bot.sendMessage(chat.id, message, {
                             parse_mode: 'HTML', cache_time: 0, "reply_markup": {
                                 "inline_keyboard": [[{
                                     "text": "⏬ Download ", "switch_inline_query_current_chat": title
@@ -81,7 +80,7 @@ bot.on('message', async (msg) => {
                     ///checks if release date is in the future
                     else if (Date.parse(year) > Date.now()) {
 
-                        await bot.sendMessage(chatId, message, {
+                        await bot.sendMessage(chat.id, message, {
                             parse_mode: 'HTML', cache_time: 0, "reply_markup": {
                                 "inline_keyboard": [[{
                                     "text": "⌚ Schedule ", "callback_data": '⌚ ' + imdb
@@ -91,7 +90,7 @@ bot.on('message', async (msg) => {
                     }
                     //if already released give option to download
                     else {
-                        await bot.sendMessage(chatId, message, {
+                        await bot.sendMessage(chat.id, message, {
                             parse_mode: 'HTML', cache_time: 0, "reply_markup": {
                                 "inline_keyboard": [[{
                                     "text": "⏬ Download ", "switch_inline_query_current_chat": title
@@ -201,7 +200,7 @@ bot.on('chosen_inline_result', async (chosen_Inline) => {
     try {
         const {result_id, from: {id}} = chosen_Inline;
         if (!await userDb.findOne({id: id, token: {$ne: null}})) {
-            await bot.sendMessage(chatId, 'You\'ll have to authenticate your account so as to be able access your downloads.');
+            await bot.sendMessage(id, 'You\'ll have to authenticate your account so as to be able access your downloads.');
             await driveInt(chosen_Inline, bot)
         } else {
             if (availableTorrents[result_id]) {
