@@ -190,6 +190,7 @@ exports.upload = async (torrent, chatId, bot, _id) => {
                 if (!fileArrayFind) fileArray[e].id = ((await makeDir((path.parse(fsPath).name))).data).id
                 else if (fileArrayFind) {
                     fileArray[e].parentId = fileArrayFind.id
+                       console.log('upload called')
                     fileArray[e].id = ((await makeDir((path.parse(fsPath).name), fileArrayFind.id)).data).id
                 }
                 if (files.length > 0) {
@@ -203,7 +204,6 @@ exports.upload = async (torrent, chatId, bot, _id) => {
         } else if (fs.statSync(torPath).isFile()) {
             await uploadFile(torPath, torrent.name)
         }
-         console.log(fileArray, 'upload called')
         
         //create folder for the torrent
         async function makeDir(dirName, parent) {
