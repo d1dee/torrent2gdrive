@@ -187,10 +187,11 @@ exports.upload = async (torrent, chatId, bot, _id) => {
             for (let e = 0; e < fileArray.length; e++) {
                 const {files, fsPath} = fileArray[e];
                 let fileArrayFind = fileArray.find(i => i.fsPath === (path.parse(fsPath)).dir)
+                console.log('upload called')
                 if (!fileArrayFind) fileArray[e].id = ((await makeDir((path.parse(fsPath).name))).data).id
                 else if (fileArrayFind) {
                     fileArray[e].parentId = fileArrayFind.id
-                       console.log('upload called')
+                       
                     fileArray[e].id = ((await makeDir((path.parse(fsPath).name), fileArrayFind.id)).data).id
                 }
                 if (files.length > 0) {
