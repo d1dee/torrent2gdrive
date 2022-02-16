@@ -45,7 +45,7 @@ exports.driveInt = async (msg, bot, replyMsgId) => {
                     }
                 })
             } catch (err) {
-                console.log(err)
+                console.log(err.message)
             }
         } else if ((replyMsgId)) {
             try {
@@ -61,11 +61,11 @@ exports.driveInt = async (msg, bot, replyMsgId) => {
                     }
                 })
             } catch (err) {
-                console.log(err)
+                console.log(err.message)
             }
         }
     } catch (err) {
-        console.log(err)
+        console.log(err.message)
     }
 }
 
@@ -158,7 +158,7 @@ exports.listTeamDrive = async (msg, bot, driveId) => {
 
         }
     } catch (err) {
-        console.log(err)
+        console.log(err.message)
     }
 }
 /**
@@ -254,7 +254,7 @@ exports.upload = async (torrent, chatId, bot, _id) => {
                         bot.editMessageText(`Upload failed for ${name} retrying...`, {
                             chat_id: chatId, message_id: msgEdit.message_id
                         }).catch(err => console.log(err))
-                        console.log(err)
+                        console.log(err.message)
                     }
                 }, retry: true
             }, async (err) => {
@@ -263,7 +263,7 @@ exports.upload = async (torrent, chatId, bot, _id) => {
                 await fs.rm(torPath, {recursive: true, force: true}, async () => {
                     await bot.editMessageText(`Upload done for ${name}`, {
                         chat_id: chatId, message_id: msgEdit.message_id
-                    }).catch(err => console.log(err))
+                    }).catch(err => console.log(err.message))
                 })
                 if (_id) {
                     await db.findOne({_id: _id})
@@ -277,7 +277,7 @@ exports.upload = async (torrent, chatId, bot, _id) => {
                                     fileName: name,
                                 }
                             }).catch((err) => {
-                                console.log(err)
+                                console.log(err.message)
                             })
                         })
                 }
@@ -293,7 +293,7 @@ exports.upload = async (torrent, chatId, bot, _id) => {
                 force_reply: true,
                 input_field_placeholder: '/start'
             })
-                .catch(err => console.log(err))
+                .catch(err => console.log(err.message))
         }
 
     }
