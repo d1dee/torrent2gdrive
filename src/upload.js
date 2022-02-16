@@ -7,8 +7,8 @@ const path = require("path");
 
 // If modifying these scopes, delete token.json.
 const SCOPES = ['https://www.googleapis.com/auth/drive'];
-
-const oAuth2Client = new google.auth.OAuth2(process.env.clientId, process.env.clientSecret, process.env.redirectUris);
+const {REDIRECTURIS, CLIENTID, CLIENTSECRET} = process.env;
+const oAuth2Client = new google.auth.OAuth2(CLIENTID, CLIENTSECRET, REDIRECTURIS);
 
 /**
  *

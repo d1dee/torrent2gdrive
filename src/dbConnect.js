@@ -1,7 +1,8 @@
 const db = require('mongoose')
 
 exports.dbConnect =  async () => {
-    await db.connect(process.env.mongo)
+    const {MONGO} = process.env;
+    await (db.connect(MONGO))
         .then(() => {
             console.log('DB connected')
         })

@@ -18,9 +18,10 @@ exports.cron = async (bot) => {
                 if (type === 'movie') {
                     i++
                 } else if (type === 'series') {
-                    await axios.get('https://api.themoviedb.org/3/find/' + imdbID + '?api_key=' + process.env.tmdb_API + '&language=en-US&external_source=imdb_id')
+                    const {TMDB_API} = process.env;
+                    await axios.get('https://api.themoviedb.org/3/find/' + imdbID + '?api_key=' + TMDB_API + '&language=en-US&external_source=imdb_id')
                         .then(async (res) => {
-                            await axios.get('https://api.themoviedb.org/3/tv/' + res.data.tv_results[0].id + '?api_key=' + process.env.tmdb_API + '&language=en-US')
+                            await axios.get('https://api.themoviedb.org/3/tv/' + res.data.tv_results[0].id + '?api_key=' + TMDB_API + '&language=en-US')
                                 .then(async (res) => {
                                     tv_show = res.data
                                 })

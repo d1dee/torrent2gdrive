@@ -1,6 +1,6 @@
 const axios = require('axios');
 const tableToJson = require('tabletojson').Tabletojson
-const omdbapi = process.env.OMDB_API
+const {OMDB_API} = process.env
 
 
 /*
@@ -22,14 +22,14 @@ const uAgent = {
 exports.movieIndex = async (query) => {
     try {
         if (/^tt/gmi.test(query) === true) {
-            return await axios.get('http://www.omdbapi.com/?i=' + encodeURI(query) + '&plot=full&apikey=' + omdbapi);
+            return await axios.get('http://www.omdbapi.com/?i=' + encodeURI(query) + '&plot=full&apikey=' + OMDB_API);
         } else if (/[0-9]{4}/gmi.test(query) === true) {
             let year = query.match(/[0-9]{4}/gmi).toString()
             query = query.toString().replace(year, '').trimEnd()
             console.log(year, query)
-            return await axios.get('http://www.omdbapi.com/?s=' + encodeURI(query) + '&y=' + year + '&apikey=' + omdbapi);
+            return await axios.get('http://www.omdbapi.com/?s=' + encodeURI(query) + '&y=' + year + '&apikey=' + OMDB_API);
         } else {
-            return await axios.get('http://www.omdbapi.com/?s=' + encodeURI(query) + '&apikey=' + omdbapi);
+            return await axios.get('http://www.omdbapi.com/?s=' + encodeURI(query) + '&apikey=' + OMDB_API);
         }
     } catch (e) {
         console.log(e, '\n /****************** OMDB Error***********************/');
