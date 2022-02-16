@@ -214,7 +214,7 @@ exports.upload = async (torrent, chatId, bot, _id) => {
                     parents: [`${parent}`], //parent folder where to upload or work on
                     mimeType: 'application/vnd.google-apps.folder',
                 }
-            }).catch(err => console.log(err))
+            }).catch(err => console.log(err.message))
         }
 
         /**
