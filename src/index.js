@@ -30,7 +30,7 @@ bot.on('message', async (msg) => {
                     'reply_markup': {'replyKeyboard': [[{'text': '/inline'}]]}
                 })
             }
-        } else if (text.toString().toLowerCase() === '/list_team_drive'){
+        } else if (text.toString().toLowerCase() === '/list_team_drive') {
             await listTeamDrive(msg, bot)
         } else if (text.toString().toLowerCase() === '/inline') {
             await bot.sendMessage(chat.id, 'Click below to search using inline mode', {
@@ -111,10 +111,9 @@ bot.on('message', async (msg) => {
 bot.on('callback_query', async (callback) => {
     const {from: {id}, data} = callback;
 
-    if (/^DriveId */ig.test(data)){
-        listTeamDrive(callback,bot,data.replace(/^DriveId /,''))
-    }
-    else if (/^⌚.*/ig.test(data)) {
+    if (/^DriveId */ig.test(data)) {
+        listTeamDrive(callback, bot, data.replace(/^DriveId /, ''))
+    } else if (/^⌚.*/ig.test(data)) {
         await schedule(callback, bot)
     } else {
         let omdbResult = (await movieIndex(data)).data;
@@ -158,49 +157,38 @@ bot.on('inline_query', async ({id: queryId, query}) => {
                 result = '[{"type":"article","id":0,"title":"Schedule this search?","description":"","message_text":"' + query + '"}]'
                 await bot.answerInlineQuery(queryId, result, {cache_time: 0})
             } else {
-                for (let i = 0; i < 50; i++) {
-                    try {
-                        if (availableTorrents[i].seeds < availableTorrents[i].leeches) {
-                            i++
-                        } else {
-                            result = {
-                                'type': 'article',
-                                'id': i,
-                                'title': availableTorrents[i].name,
-                                'description': 'Seeds:' + availableTorrents[i].seeds + '\t leeches:' + availableTorrents[i].leeches + '\t Age:' + availableTorrents[i].age + '\t Size:' + availableTorrents[i].size + '\t Type:' + availableTorrents[i].type,
-                                'message_text': 'Downloading \n' + availableTorrents[i].name + '\n',
-                                "reply_markup": {
-                                    "inline_keyboard": [[{
-                                        "text": "⏬ Search Again ", "switch_inline_query_current_chat": query
-                                    }]]
-                                }
-                            }
-                            inlineQueryResult.push(result)
+                let i = 0
+                availableTorrents.forEach(({age, leeches, name, seeds, size, type}) => {
+                    result = {
+                        'type': 'article',
+                        'id': i,
+                        'title': name,
+                        'description': `Seeds: ${seeds}\t leeches: ${leeches}\t Upload Date: ${age}\t Size: ${size}\t Type: ${type}`,
+                        'message_text': `Downloading\n ${name}\n`,
+                        "reply_markup": {
+                            "inline_keyboard": [[{
+                                "text": "⏬ Search Again ", "switch_inline_query_current_chat": query
+                            }]]
                         }
-                    } catch (e) {
-                        result = `[{"type":"article","id":0,"title":"Schedule this search?","description":"",' +
-                            '"message_text":"⌚ ${query}"}]`
-                        await bot.answerInlineQuery(queryId, result, {cache_time: 0})
                     }
-                }
+                    inlineQueryResult.push(result)
+                    i++
+                })
             }
         }
     } catch (err) {
         console.log(err.message)
     }
-    try {
-        result = JSON.stringify(inlineQueryResult)
-        await bot.answerInlineQuery(queryId, result, {cache_time: 0})
-    } catch (err) {
-        console.log(err.message)
-    }
+    await bot.answerInlineQuery(queryId, JSON.stringify(inlineQueryResult), {cache_time: 0})
+        .catch((err) => console.log(err.message))
 })
 
 bot.on('chosen_inline_result', async (chosen_Inline) => {
     try {
         const {result_id, from: {id}} = chosen_Inline;
         if (!await userDb.findOne({id: id, token: {$ne: null}})) {
-            await bot.sendMessage(id, 'You\'ll have to authenticate your account so as to be able access your downloads.');
+            await bot.sendMessage(id, 'You\'ll have to authenticate your account so as to be able access your downloads.')
+                .catch((err) => console.log(err.message))
             await driveInt(chosen_Inline, bot)
         } else {
             if (availableTorrents[result_id]) {
