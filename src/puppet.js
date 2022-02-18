@@ -20,14 +20,15 @@ exports.movieIndex = async (query) => {
 exports.torrentDownload = async (query, site) => {
     try {
         let returnData = []
-        if(!site) site = 'all'
+        if (!site) site = 'all'
         await axios.get(`https://torrent-api-d1dee.koyeb.app/api/${site}/${query}`)
             .then(async ({data}) => {
                 if (!data) return
                 if (Array.isArray(data[0])) {
                     data.forEach((e) => {
-                        e.forEach(({DateUploaded, Leechers, Magnet, Name, Seeders, Size, UploadedBy, Type}) => {
-                            if (!(/^magnet:\?/i.test(Magnet)) || !parseInt(Seeders) || parseInt(Seeders) < parseInt(Leechers)) return
+                        e.forEach(({DateUploaded, Leechers, Magnet, Name, Seeders, Size, UploadedBy, Category}) => {
+                            if (!(/^magnet:\?/i.test(Magnet)) || !parseInt(Seeders) || parseInt(Seeders) < 20 ||
+                                parseInt(Seeders) > 10000 || parseInt(Seeders) < parseInt(Leechers)) return
                             returnData.push({
                                 name: Name,
                                 size: Size,
@@ -36,14 +37,14 @@ exports.torrentDownload = async (query, site) => {
                                 magnet: Magnet,
                                 provider: UploadedBy,
                                 leeches: Leechers,
-                                type: Type,
+                                type: Category
                             })
                         })
                     })
                 }
                 returnData = (returnData.sort((a, b) => {
-                    return b.Seeders - a.Seeders;
-                })).slice(0,50)
+                    return b.seeds - a.seeds;
+                })).slice(0, 50)
             })
         return returnData
     } catch (err) {

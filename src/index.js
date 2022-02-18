@@ -161,7 +161,7 @@ bot.on('inline_query', async ({id: queryId, query}) => {
                 availableTorrents.forEach(({age, leeches, name, seeds, size, type}) => {
                     result = {
                         'type': 'article',
-                        'id': i,
+                        'id': i++,
                         'title': name,
                         'description': `Seeds: ${seeds}\t leeches: ${leeches}\t Upload Date: ${age}\t Size: ${size}\t Type: ${type}`,
                         'message_text': `Downloading\n ${name}\n`,
@@ -172,7 +172,6 @@ bot.on('inline_query', async ({id: queryId, query}) => {
                         }
                     }
                     inlineQueryResult.push(result)
-                    i++
                 })
             }
         }
