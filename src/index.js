@@ -8,6 +8,7 @@ const db = require('./schemas/userSchema')
 const {setAuth, listTeamDrive, driveInt} = require("./upload");
 const {download} = require('./download')
 const userDb = require("./schemas/userSchema");
+const fs = require("fs");
 
 dbCon.dbConnect()
 
@@ -18,21 +19,25 @@ var availableTorrents = []
 
 bot.on('message', async (msg) => {
     try {
-        const {chat, reply_to_message, text, from} = msg;
+        const {chat, reply_to_message, text, from, via_bot} = msg;
         let {token, tokenMsg} = await db.findOne({id: from.id})
-        if (token != null) await setAuth(msg, bot)
-        if (text.toString().toLowerCase() === '/start' || reply_to_message) {
+        let message_text = text.toString().toLowerCase()
+
+        if (token !== null) await setAuth(msg, bot)
+
+        if (via_bot) return null
+        else if (message_text === '/start' || reply_to_message) {
             if (reply_to_message && tokenMsg === reply_to_message.message_id) {
                 await driveInt(msg, bot, tokenMsg)
-            } else if (text.toString().toLowerCase() === '/start') {
+            } else if (message_text === '/start') {
                 await driveInt(msg, bot)
-                await bot.sendMessage(chat.id, 'Welcome to Gdl', {
-                    'reply_markup': {'replyKeyboard': [[{'text': '/inline'}]]}
+                await bot.sendMessage(chat.id, 'Welcome to Torrent2GoogleDrive. ' + 'This bot can help you easily upload any torrent to Google Drive. Type <code>/help </code> for Help', {
+                    reply_markup: {parse_mode: 'HTML'}
                 })
             }
-        } else if (text.toString().toLowerCase() === '/list_team_drive') {
+        } else if (message_text === '/list_team_drive') {
             await listTeamDrive(msg, bot)
-        } else if (text.toString().toLowerCase() === '/inline') {
+        } else if (message_text === '/inline_search') {
             await bot.sendMessage(chat.id, 'Click below to search using inline mode', {
                 reply_markup: {
                     inline_keyboard: [[{
@@ -40,86 +45,85 @@ bot.on('message', async (msg) => {
                     }]]
                 }
             })
-        } else if (text.toString().toLowerCase() === '/help') {
-            await bot.sendMessage(chat.id, 'Help not yet imprinted, Sorry :(')
-        } else if (/^Downloading.*/ig.test(text)) {
-            //update progress
-        } else if (/^magnet:.*/ig.test(text)) {
-            await download(text, bot, chat.id)
-        } else {
-            let searched = (await movieIndex(text)).data
-            if (searched.Response === 'False') {
-                await bot.sendMessage(chat.id, 'No results found, please check for any typos\n <code>' + searched.Error + '</code>', {parse_mode: 'HTML'})
-                    .catch((err) => console.log(err.message))
-                return
-            }
-            try {
-                for (let i = 0; i < (searched.Search).length; i++) {
-                    let title = searched.Search[i].Title, imdb = searched.Search[i].imdbID,
-                        type = searched.Search[i].Type, poster = searched.Search[i].Poster,
-                        more_info = (await movieIndex(imdb))
-                    let year = more_info.data.Released, genre = more_info.data.Genre,
-                        imdbRating = more_info.data.imdbRating
-                    let message = '<a href="' + poster + '">\n</a>' + '<b>' + title + '</b> \n' + 'Year: ' + year + '\n' + 'Type: ' + type + '\n' + 'Genre: ' + genre + '\n' + 'Rating: ' + imdbRating + '\n'
-
-                    if (type === 'game') {
-                        i++
-                    } else if (/\d$/.test((more_info.data.Year).toString()) === false) {
-                        await bot.sendMessage(chat.id, message, {
-                            parse_mode: 'HTML', cache_time: 0, "reply_markup": {
-                                "inline_keyboard": [[{
-                                    "text": "⏬ Download ", "switch_inline_query_current_chat": title
-                                }, {"text": "⌚ Schedule ", "callback_data": '⌚ ' + imdb}, {
-                                    "text": "✈ More Info", "callback_data": imdb
-                                }]]
-                            }
-                        }).catch((err) => console.log(err.message))
-
-                    }
-
-                    ///checks if release date is in the future
-                    else if (Date.parse(year) > Date.now()) {
-
-                        await bot.sendMessage(chat.id, message, {
-                            parse_mode: 'HTML', cache_time: 0, "reply_markup": {
-                                "inline_keyboard": [[{
-                                    "text": "⌚ Schedule ", "callback_data": '⌚ ' + imdb
-                                }, {"text": "✈ More Info", "callback_data": imdb}]]
-                            }
-                        }).catch((err) => console.log(err.message))
-                    }
-                    //if already released give option to download
-                    else {
-                        await bot.sendMessage(chat.id, message, {
-                            parse_mode: 'HTML', cache_time: 0, "reply_markup": {
-                                "inline_keyboard": [[{
-                                    "text": "⏬ Download ", "switch_inline_query_current_chat": title
-                                }, {"text": "✈ More Info", "callback_data": imdb}]]
-                            }
-                        }).catch((err) => console.log(err.message))
-                    }
+        } else if (message_text === '/help') {
+            await bot.sendMessage(chat.id, 'Click below to get a list of all available commands', {
+                reply_markup: {
+                    inline_keyboard: [[{
+                        text: 'Help.', switch_inline_query_current_chat: '/'
+                    }]]
                 }
-            } catch (err) {
-                console.log(err)
-            }
+            })
+        } else if (/^magnet:.*/ig.test(message_text)) {
+            await download(message_text, bot, chat.id)
+        } else {
+            const movie = await movieIndex(message_text)
+                .catch((err) => {
+                    console.log(err.message)
+                    bot.sendMessage(from.id, `<code>${err.message}</code>`, {
+                        parse_mode: 'HTML'
+                    })
+                });
+            movie.forEach(async (element, index) => {
+                const {
+                    id,
+                    backdrop_path,
+                    genre_ids,
+                    original_title,
+                    original_language,
+                    overview,
+                    poster_path,
+                    release_date,
+                    title,
+                    media_type,
+                    vote_average
+                } = element
+                let tmdb
+                fs.readFile(`${__dirname}/tmdb.json`, {encoding: 'utf8',}, function (err, data) {
+                    if (err) return console.log(err.message)
+                    tmdb = JSON.parse(data)
+                })
+                const {images: {secure_base_url, base_url}} = tmdb,
+                    messages = `<a href="${secure_base_url}/original/${poster_path}"><b>${title}     ${media_type}</b></a>
+Release date: ${release_date}  Rating: ${vote_average}
+
+Plot: ${overview}`
+                if (Date.parse(release_date) > Date.now()) {
+                    bot.sendMessage(from.id, messages, {
+                        parse_mode: 'HTML', cache_time: 0, "reply_markup": {
+                            "inline_keyboard": [[{
+                                "text": "⏬ Download ", "switch_inline_query_current_chat": title
+                            }, {"text": "⌚ Schedule ", "callback_data": '⌚ ' + id}, {
+                                "text": "✈ More Info", "callback_data": id
+                            }]]
+                        }
+                    }).catch((err) => console.log(err.message))
+                } else {
+                    await bot.sendMessage(from.id, messages, {
+                        parse_mode: 'HTML', cache_time: 0, "reply_markup": {
+                            "inline_keyboard": [[{
+                                "text": "⏬ Download ", "switch_inline_query_current_chat": title
+                            }, {"text": "✈ More Info", "callback_data": id}]]
+                        }
+                    }).catch((err) => console.log(err.message))
+                }
+            })
         }
     } catch (err) {
-        console.log(err)
+        console.log(err.message)
     }
 })
 
 bot.on('callback_query', async (callback) => {
-    const {from: {id}, data} = callback;
-
+    console.log(callback)
+    const {from: {id}, data} = callback
     if (/^DriveId */ig.test(data)) {
         listTeamDrive(callback, bot, data.replace(/^DriveId /, ''))
     } else if (/^⌚.*/ig.test(data)) {
         await schedule(callback, bot)
     } else {
-        let omdbResult = (await movieIndex(data)).data;
-
         try {
-            let message = 'Title:\t' + omdbResult.Title + '\nReleased:\t' + omdbResult.Released + '\nRatings:\t' + omdbResult.imdbRating + '\nPlot:\t' + omdbResult.Plot
+            let message = `Title: ${title}  Released:Ratings:\t' +
+               vote_average + '\nPlot:\t' + overview`
 
             if (Date.parse(omdbResult.Released) > Date.now()) {
                 await bot.sendMessage(id, '<a href="' + omdbResult.Poster + '">\n</a>' + message, {
@@ -157,11 +161,10 @@ bot.on('inline_query', async ({id: queryId, query}) => {
                 result = '[{"type":"article","id":0,"title":"Schedule this search?","description":"","message_text":"' + query + '"}]'
                 await bot.answerInlineQuery(queryId, result, {cache_time: 0})
             } else {
-                let i = 0
-                availableTorrents.forEach(({age, leeches, name, seeds, size, type}) => {
+                availableTorrents.forEach(({age, leeches, name, seeds, size, type}, index) => {
                     result = {
                         'type': 'article',
-                        'id': i,
+                        'id': index,
                         'title': name,
                         'description': `Seeds: ${seeds}\t leeches: ${leeches}\t Upload Date: ${age}\t Size: ${size}\t Type: ${type}`,
                         'message_text': `Downloading\n ${name}\n`,
@@ -171,7 +174,6 @@ bot.on('inline_query', async ({id: queryId, query}) => {
                             }]]
                         }
                     }
-                    i++
                     inlineQueryResult.push(result)
                 })
             }

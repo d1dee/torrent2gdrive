@@ -3,11 +3,21 @@ const db = require("./schemas/moviesSchema");
 const {torrentDownload} = require("./puppet");
 const axios = require("axios");
 const {download} = require("./download")
+const fs = require("fs");
+
+const {TMDB_API} = process.env
 
 /**
  * @param bot {Object} Initialized telegram bot
  */
 exports.cron = async (bot) => {
+    axios.get(`https://api.themoviedb.org/3/configuration?api_key=${TMDB_API}`)
+        .then(({data}) => {
+            fs.writeFile(`${__dirname}/tmdb.json`,JSON.stringify(data), (err, data) => {
+                if (err) console.log(err.message)
+            })
+        }).catch(err => console.log(err))
+
     let tv_show
     cron.schedule('0 */2 * * *', async () => {
         console.log('Cron job running...')
@@ -33,8 +43,7 @@ exports.cron = async (bot) => {
                             console.log('Error', err.message);
                         })
                     if (!tv_show) {
-                        await bot.sendMessage(userID, `Cron job couldn't find  any result on ${title}`)
-                            .catch((err) => console.log(err.message))
+                        console.log('Error', err.message);
                         continue
                     }
                     let nextEpisode, lastEpisode, lastEpisodeAired, nextEpisodeAired
