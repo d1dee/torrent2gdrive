@@ -1,6 +1,6 @@
 let cron = require('node-cron');
 const db = require("./schemas/moviesSchema");
-const {torrentDownload, eztv} = require("./puppet");
+const {torrentDownload} = require("./puppet");
 const axios = require("axios");
 const {download} = require("./download")
 
@@ -9,7 +9,7 @@ const {download} = require("./download")
  */
 exports.cron = async (bot) => {
     let tv_show
-    cron.schedule('0 */6 * * *', async () => {
+    cron.schedule('0 */2 * * *', async () => {
         console.log('Cron job running...')
         try {
             let toDownload = await db.find({release_date: {$lte: Date.now()}})
@@ -109,9 +109,9 @@ async function cronDownload(bot) {
             } else if (type === 'series' && episode.lastEpisode !== download1.episode) {
                 let downloadJson
                 if (complete) {
-                    downloadJson = await eztv(`${title}  complete`)
+                    downloadJson = await torrentDownload(`${title}  complete`,'eztv')
                 } else {
-                    downloadJson = await eztv(`${title} ${episode.lastEpisode}`)
+                    downloadJson = await torrentDownload(`${title} ${episode.lastEpisode}`,'eztv')
                 }
                 if (!downloadJson) console.log(`Search returned no result for ${title}`)
                 for (let i = 0; i < 20; i++) {
