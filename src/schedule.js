@@ -1,7 +1,7 @@
 const db = require('./schemas/moviesSchema')
 const {movieIndex} = require("./puppet");
 
-exports.schedule = async (msg, bot) => {
+exports.scheduler = async (msg, bot) => {
     try{
         if ((await db.find({imdbID:msg.data.toString().slice(2)})).length > 0) {
             await bot.sendMessage(msg.from.id,'Already scheduled').catch((err) => console.log(err.message))

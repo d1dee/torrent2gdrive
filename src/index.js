@@ -2,15 +2,19 @@ require('dotenv').config({path: '.env'})
 const dbCon = require('./dbConnect')
 const tgBot = require('node-telegram-bot-api');
 const {movieIndex, torrentDownload} = require("./puppet");
-const {schedule} = require("./schedule");
-const {cron} = require("./cron-job");
+const {scheduler} = require("./schedule");
+const {cron, tmdb_config} = require("./cron-job");
 const db = require('./schemas/userSchema')
 const {setAuth, listTeamDrive, driveInt} = require("./upload");
 const {download} = require('./download')
 const userDb = require("./schemas/userSchema");
 const fs = require("fs");
+const {path} = require("file");
 
-dbCon.dbConnect()
+dbCon.dbConnect().then(()=>{
+    tmdb_config().catch(err => console.log(err))
+}).catch(err => console.log(err))
+
 
 const {TELEGRAM_API} = process.env;
 const bot = new tgBot(TELEGRAM_API, {polling: true})
@@ -56,18 +60,20 @@ bot.on('message', async (msg) => {
         } else if (/^magnet:.*/ig.test(message_text)) {
             await download(message_text, bot, chat.id)
         } else {
+            console.log(message_text)
             const movie = await movieIndex(message_text)
                 .catch((err) => {
-                    console.log(err.message)
+                    console.log(err)
                     bot.sendMessage(from.id, `<code>${err.message}</code>`, {
                         parse_mode: 'HTML'
                     })
+                    throw err.message
                 });
-            movie.forEach(async (element, index) => {
-                const {
+            movie.forEach(async (element) => {
+                let {
                     id,
                     backdrop_path,
-                    genre_ids,
+                    genre,
                     original_title,
                     original_language,
                     overview,
@@ -77,13 +83,8 @@ bot.on('message', async (msg) => {
                     media_type,
                     vote_average
                 } = element
-                let tmdb
-                fs.readFile(`${__dirname}/tmdb.json`, {encoding: 'utf8',}, function (err, data) {
-                    if (err) return console.log(err.message)
-                    tmdb = JSON.parse(data)
-                })
-                const {images: {secure_base_url, base_url}} = tmdb,
-                    messages = `<a href="${secure_base_url}/original/${poster_path}"><b>${title}     ${media_type}</b></a>
+
+                let messages = `<a href="${poster_path}"><b>${title} </b>(${media_type})  ${genre.toString()}</a>
 Release date: ${release_date}  Rating: ${vote_average}
 
 Plot: ${overview}`
@@ -92,9 +93,14 @@ Plot: ${overview}`
                         parse_mode: 'HTML', cache_time: 0, "reply_markup": {
                             "inline_keyboard": [[{
                                 "text": "⏬ Download ", "switch_inline_query_current_chat": title
-                            }, {"text": "⌚ Schedule ", "callback_data": '⌚ ' + id}, {
-                                "text": "✈ More Info", "callback_data": id
-                            }]]
+                            }, {
+                                "text": "⌚ Schedule ",
+                                "callback_data": JSON.stringify({schedule: true, id, media_type})
+                            },
+                                {
+                                    "text": "✈ More Info",
+                                    "callback_data": JSON.stringify({more_info: true, id, media_type})
+                                }]]
                         }
                     }).catch((err) => console.log(err.message))
                 } else {
@@ -102,7 +108,10 @@ Plot: ${overview}`
                         parse_mode: 'HTML', cache_time: 0, "reply_markup": {
                             "inline_keyboard": [[{
                                 "text": "⏬ Download ", "switch_inline_query_current_chat": title
-                            }, {"text": "✈ More Info", "callback_data": id}]]
+                            }, {
+                                "text": "✈ More Info",
+                                "callback_data": JSON.stringify({more_info: true, id, media_type})
+                            }]]
                         }
                     }).catch((err) => console.log(err.message))
                 }
@@ -114,34 +123,70 @@ Plot: ${overview}`
 })
 
 bot.on('callback_query', async (callback) => {
-    console.log(callback)
-    const {from: {id}, data} = callback
-    if (/^DriveId */ig.test(data)) {
-        listTeamDrive(callback, bot, data.replace(/^DriveId /, ''))
-    } else if (/^⌚.*/ig.test(data)) {
-        await schedule(callback, bot)
-    } else {
-        try {
-            let message = `Title: ${title}  Released:Ratings:\t' +
-               vote_average + '\nPlot:\t' + overview`
 
-            if (Date.parse(omdbResult.Released) > Date.now()) {
-                await bot.sendMessage(id, '<a href="' + omdbResult.Poster + '">\n</a>' + message, {
+    const {from, data} = callback
+    const {id, schedule, more_info, drive_id, media_type} = JSON.parse(data)
+
+    if (drive_id) {
+        listTeamDrive(callback, bot, data.replace(/^DriveId /, ''))
+    } else if (schedule) {
+        await scheduler(await movieIndex({id, media_type}), bot)
+    } else if (more_info) {
+        try {
+            let {
+                adult,
+                belongs_to_collection,
+                genres,
+                imdb_id,
+                original_language,
+                original_title,
+                overview,
+                poster_path,
+                popularity,
+                release_date,
+                runtime,
+                status,
+                tagline,
+                vote_average,
+                first_air_date,
+                in_production,
+                last_air_date,
+                last_episode_to_air,
+                name,
+                next_episode_to_air,
+                networks,
+                number_of_seasons,
+                original_name, title
+            } = await movieIndex({id, media_type})
+
+            let message =
+                `<a href="${poster_path}"><b>${name || title}</b>  ${genres}</a>  
+<i>${tagline}</i>
+
+<b>Type:</b> ${media_type}    <b>Released date:</b> ${first_air_date || release_date}    <b>Ratings:</b> ${vote_average}
+
+<b>Plot:</b> ${overview}`
+
+            if (Date.parse(first_air_date) > Date.now() || Date.parse(release_date) > Date.now()) {
+                await bot.sendMessage(from.id, message, {
                     parse_mode: 'HTML', cache_time: 0, "reply_markup": {
-                        "inline_keyboard": [[{"text": "⌚ Schedule", "callback_data": '⌚ ' + data}]]
+                        "inline_keyboard": [[{
+                            "text": "⌚ Schedule",
+                            "callback_data": JSON.stringify({schedule: true, id, media_type})
+                        }]]
                     }
                 })
             } else {
-                await bot.sendMessage(id, '<a href="' + omdbResult.Poster + '">\n</a>' + message, {
+                await bot.sendMessage(from.id, message, {
                     parse_mode: 'HTML', cache_time: 0, "reply_markup": {
                         "inline_keyboard": [[{
-                            "text": "⏬ Download ", "switch_inline_query_current_chat": omdbResult.Title
+                            "text": "⏬ Download ", "switch_inline_query_current_chat": title || name
                         }]]
                     }
                 })
             }
         } catch (err) {
-            console.log(err.message)
+            console.log(err)
         }
     }
 })

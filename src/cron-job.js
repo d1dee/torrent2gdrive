@@ -4,6 +4,7 @@ const {torrentDownload} = require("./puppet");
 const axios = require("axios");
 const {download} = require("./download")
 const fs = require("fs");
+const {path} = require("file");
 
 const {TMDB_API} = process.env
 
@@ -11,13 +12,7 @@ const {TMDB_API} = process.env
  * @param bot {Object} Initialized telegram bot
  */
 exports.cron = async (bot) => {
-    axios.get(`https://api.themoviedb.org/3/configuration?api_key=${TMDB_API}`)
-        .then(({data}) => {
-            fs.writeFile(`${__dirname}/tmdb.json`,JSON.stringify(data), (err, data) => {
-                if (err) console.log(err.message)
-            })
-        }).catch(err => console.log(err))
-
+    exports.tmdb_config()
     let tv_show
     cron.schedule('0 */2 * * *', async () => {
         console.log('Cron job running...')
@@ -118,9 +113,9 @@ async function cronDownload(bot) {
             } else if (type === 'series' && episode.lastEpisode !== download1.episode) {
                 let downloadJson
                 if (complete) {
-                    downloadJson = await torrentDownload(`${title}  complete`,'eztv')
+                    downloadJson = await torrentDownload(`${title}  complete`, 'eztv')
                 } else {
-                    downloadJson = await torrentDownload(`${title} ${episode.lastEpisode}`,'eztv')
+                    downloadJson = await torrentDownload(`${title} ${episode.lastEpisode}`, 'eztv')
                 }
                 if (!downloadJson) console.log(`Search returned no result for ${title}`)
                 for (let i = 0; i < 20; i++) {
@@ -167,3 +162,19 @@ function seasonEpisode(season, episode) {
     }
 }
 
+exports.tmdb_config = async () => {
+    let tmdb_file = []
+    let axios_promise = [axios.get(`https://api.themoviedb.org/3/configuration?api_key=${TMDB_API}`),
+        axios.get(`https://api.themoviedb.org/3/genre/movie/list?api_key=${TMDB_API}`)]
+
+    await Promise.all(axios_promise)
+        .then((results) => {
+            results.forEach((element) => {
+                const {data} = element
+                tmdb_file.push(data)
+            })
+        })
+        .catch(err => console.log(err.message))
+    await fs.writeFileSync(path.join(__dirname, 'tmdb.json'), JSON.stringify(tmdb_file))
+
+}

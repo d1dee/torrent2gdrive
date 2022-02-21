@@ -281,10 +281,8 @@ exports.upload = async (torrent, chatId, bot, _id) => {
                             })
                         })
                 }
-
             })
         }
-
     } catch (err) {
         console.log(err.message)
         if (err.message === 'invalid_grant') {
@@ -295,6 +293,5 @@ exports.upload = async (torrent, chatId, bot, _id) => {
             })
                 .catch(err => console.log(err.message))
         }
-
     }
 }

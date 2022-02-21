@@ -3,9 +3,15 @@
   "version": "1.0.0",
   "description": "",
   "main": "./src/index.js",
+  "nodemonConfig": {
+    "ignore": [
+      "tmdb.json"
+    ],
+    "delay": 2
+  },
   "scripts": {
     "start": "node src/index.js",
-    "devStart": "nodemon src",
+    "devStart": "nodemon ./src",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
