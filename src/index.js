@@ -8,10 +8,8 @@ const db = require('./schemas/userSchema')
 const {setAuth, listTeamDrive, driveInt} = require("./upload");
 const {download} = require('./download')
 const userDb = require("./schemas/userSchema");
-const fs = require("fs");
-const {path} = require("file");
 
-dbCon.dbConnect().then(()=>{
+dbCon.dbConnect().then(() => {
     tmdb_config().catch(err => console.log(err))
 }).catch(err => console.log(err))
 
@@ -29,13 +27,13 @@ bot.on('message', async (msg) => {
 
         if (token !== null) await setAuth(msg, bot)
 
-        if (via_bot) return null
+        if (via_bot && !/^\//.test(message_text)) return null
         else if (message_text === '/start' || reply_to_message) {
             if (reply_to_message && tokenMsg === reply_to_message.message_id) {
                 await driveInt(msg, bot, tokenMsg)
             } else if (message_text === '/start') {
                 await driveInt(msg, bot)
-                await bot.sendMessage(chat.id, 'Welcome to Torrent2GoogleDrive. ' + 'This bot can help you easily upload any torrent to Google Drive. Type <code>/help </code> for Help', {
+                await bot.sendMessage(chat.id, `Welcome to Torrent2GoogleDrive. This bot can help you easily upload any torrent to Google Drive. Type <code>\/help </code> for Help`, {
                     reply_markup: {parse_mode: 'HTML'}
                 })
             }
@@ -160,7 +158,7 @@ bot.on('callback_query', async (callback) => {
             } = await movieIndex({id, media_type})
 
             let message =
-                `<a href="${poster_path}"><b>${name || title}</b>  ${genres}</a>  
+                `<a href="${poster_path}"><b>${name || title}</b>  <i>${genres}</i></a>  
 <i>${tagline}</i>
 
 <b>Type:</b> ${media_type}    <b>Released date:</b> ${first_air_date || release_date}    <b>Ratings:</b> ${vote_average}
@@ -191,43 +189,81 @@ bot.on('callback_query', async (callback) => {
     }
 })
 
-bot.on('inline_query', async ({id: queryId, query}) => {
-    let result, inlineQueryResult = []
-    try {
-        if (!query || query.length < 3) {
-            ///limiting searching to for fewer characters to avoid waste of processing power and reduce que
-            // Also might want to add offset later on once you figure them out
-            result = '[{"type":"article","id":0,"title":"Searching....","description":"","message_text":"' + query + '"}]'
-            await bot.answerInlineQuery(queryId, result, {cache_time: 0})
-        } else {
-            //Pass to torrent download to fetch all available torrents
-            availableTorrents = await torrentDownload(query)
-            if (!availableTorrents || !availableTorrents.length) {
-                result = '[{"type":"article","id":0,"title":"Schedule this search?","description":"","message_text":"' + query + '"}]'
-                await bot.answerInlineQuery(queryId, result, {cache_time: 0})
-            } else {
-                availableTorrents.forEach(({age, leeches, name, seeds, size, type}, index) => {
-                    result = {
-                        'type': 'article',
-                        'id': index,
-                        'title': name,
-                        'description': `Seeds: ${seeds}\t leeches: ${leeches}\t Upload Date: ${age}\t Size: ${size}\t Type: ${type}`,
-                        'message_text': `Downloading\n ${name}\n`,
-                        "reply_markup": {
-                            "inline_keyboard": [[{
-                                "text": "⏬ Search Again ", "switch_inline_query_current_chat": query
-                            }]]
+bot.on('inline_query', async ({query, id: queryId}) => {
+    if (/^\//.test(query)) {
+        let inline_result = [], result_array = [{
+            title: 'Start',
+            command: '/start',
+            description: 'Initialize this bot from to the original state.'
+        }, {
+            title: 'Help',
+            command: '/help',
+            description: 'Get a run-down of all supported features.'
+        }, {
+            title: 'Inline Search',
+            command: '/inline_search',
+            description: 'Use inline search to directly search for torrent files'
+        }, {
+            title: 'List Team Drives',
+            command: '/list_team_drive',
+            description: 'List team drives where upload will be uploaded to. If no team drive is specified, uploads are made directly to MyDrive'
+        }]
+        result_array.forEach((element, index) => {
+            const {title, command, description} = element
+            inline_result.push({
+                type: "article",
+                id: index,
+                title: title,
+                description: description,
+                message_text: command
+            })
+        })
+        bot.answerInlineQuery(queryId, inline_result).catch(err => console.log(err))
+    } else if (!query || query.length < 3) {
+        query ?
+            bot.answerInlineQuery(queryId, [{
+                type: "article",
+                id: 0,
+                title: "Searching....",
+                description: "",
+                message_text: query
+            }], {cache_time: 0}).catch(err => console.log(err)) : null
+    } else {
+        await torrentDownload(query)
+            .then((data) => {
+                availableTorrents = data
+                let response = []
+                data.forEach(({age, leeches, name, seeds, size, type,provider}, index) => {
+                    response.push({
+                            type: 'article',
+                            id: index,
+                            title: name,
+                            description: `Seeds: ${seeds}\t leeches: ${leeches}\t Uploaded by: ${provider}\t Upload Date: ${age}\t Size: ${size}\t Type: ${type}`,
+                            message_text: `Downloading\n ${name}\n`,
+                            reply_markup: {
+                                inline_keyboard: [[{
+                                    text: "⏬ Search Again ",
+                                    switch_inline_query_current_chat: query
+                                }]]
+                            }
                         }
-                    }
-                    inlineQueryResult.push(result)
+                    )
                 })
-            }
-        }
-    } catch (err) {
-        console.log(err.message)
+                bot.answerInlineQuery(queryId, response, {cache_time: 1})
+            })
+            .catch(err => {
+                if (err.search_error) {
+                    bot.answerInlineQuery(queryId, [{
+                        type: "article",
+                        id: 0,
+                        title: `No results found for ${query}`,
+                        description: "Try checking for typing errors or try another search term.",
+                        message_text: query || ' '
+                    }])
+                }
+                console.log(err)
+            })
     }
-    await bot.answerInlineQuery(queryId, JSON.stringify(inlineQueryResult), {cache_time: 0})
-        .catch((err) => console.log(err.message))
 })
 
 bot.on('chosen_inline_result', async (chosen_Inline) => {
@@ -240,7 +276,7 @@ bot.on('chosen_inline_result', async (chosen_Inline) => {
         } else {
             if (availableTorrents[result_id]) {
                 const {magnet} = availableTorrents[result_id];
-                await download(magnet, bot, id)
+                download(magnet, bot, id)
             }
         }
     } catch (err) {
@@ -248,4 +284,3 @@ bot.on('chosen_inline_result', async (chosen_Inline) => {
     }
 })
 
-cron(bot)

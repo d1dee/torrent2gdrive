@@ -4,11 +4,15 @@ const {path} = require("file");
 
 let tmdb_config = JSON.parse(fs.readFileSync(path.join(__dirname, 'tmdb.json'), {encoding: 'utf8'}))
 const {images: {secure_base_url}} = tmdb_config[0], {genres} = tmdb_config[1]
-
+/**
+ *
+ * @param query {String || Object} if a string is supplied, this will be the search term to request from TMDB.
+ * When an object is supplied it should contain {TMDB id, media_type}
+ * @returns {Promise <resolve, reject>} Rejects with error
+ */
 exports.movieIndex = async (query) => {
     const {id, media_type} = query
     if (id && media_type) {
-        console.log('matching query')
         return new Promise(async (resolve, reject) => {
             let data
             if (media_type === 'movie') {
@@ -100,41 +104,51 @@ exports.movieIndex = async (query) => {
         })
     }
 }
+/**
+ *
+ * @param query {String} Search term
+ * @param site {String} Used when searching in a specific site
+ * @returns {Promise<*[]>}
+ */
 exports.torrentDownload = async (query, site) => {
-    try {
+    return new Promise((resolve, reject) => {
         let returnData = []
         if (!site) site = 'all'
-        await axios.get(`https://torrent-api-d1dee.koyeb.app/api/${site}/${query}`)
-            .then(async ({data}) => {
-                if (!data) return
+        axios.get(`https://torrent-api-d1dee.koyeb.app/api/${site}/${query}`)
+            .then(({data}) => {
+                if (!data) reject({search_error: 'No data received'})
                 if (Array.isArray(data[0])) {
                     data.forEach((e) => {
+                        if (!e) return
                         e.forEach(({DateUploaded, Leechers, Magnet, Name, Seeders, Size, UploadedBy, Category}) => {
-                            if (!(/^magnet:\?/i.test(Magnet)) || !parseInt(Seeders) || parseInt(Seeders) < 20 || parseInt(Seeders) > 10000 || parseInt(Seeders) < parseInt(Leechers)) return
+                            if (!(/^magnet:\?/i.test(Magnet)) || !Seeders || !Name || !Size ||
+                                parseInt(Seeders) < 20 || parseInt(Seeders) > 10000 || parseInt(Seeders) < parseInt(Leechers)) return
                             returnData.push({
                                 name: Name,
                                 size: Size,
-                                age: DateUploaded,
+                                age: DateUploaded ? DateUploaded : '',
                                 seeds: Seeders,
                                 magnet: Magnet,
-                                provider: UploadedBy,
-                                leeches: Leechers,
-                                type: Category
+                                provider: UploadedBy ? UploadedBy : '',
+                                leeches: Leechers ? Leechers : '',
+                                type: Category ? Category : ''
                             })
                         })
                     })
                 }
-                returnData = (returnData.sort((a, b) => {
+                resolve((returnData.sort((a, b) => {
                     return b.seeds - a.seeds;
-                })).slice(0, 50)
+                })).slice(0, 50))
             })
-            .catch(err => console.log(err.message))
-        return returnData
-    } catch (err) {
-        console.log(err)
-    }
+            .catch(err => reject({message: err}))
+    })
 }
 
+/**
+ *
+ * @param genre_ids {[Number]} Genre ids to match to
+ * @returns {*[String]} Return an array that match with genre id supplied
+ */
 function genre_to_string(genre_ids) {
     let genre_string = []
     genre_ids ?
