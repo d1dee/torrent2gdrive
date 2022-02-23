@@ -3,16 +3,13 @@ const dbCon = require('./dbConnect')
 const tgBot = require('node-telegram-bot-api');
 const {movieIndex, torrentDownload} = require("./puppet");
 const {scheduler} = require("./schedule");
-const {cron, tmdb_config} = require("./cron-job");
+//const {cron, tmdb_config} = require("./cron-job");
 const db = require('./schemas/userSchema')
 const {setAuth, listTeamDrive, driveInt} = require("./upload");
 const {download} = require('./download')
 const userDb = require("./schemas/userSchema");
 
-dbCon.dbConnect().then(() => {
-    tmdb_config().catch(err => console.log(err))
-}).catch(err => console.log(err))
-
+dbCon.dbConnect().then(() => console.log('db connected')).catch(err => console.log(err))
 
 const {TELEGRAM_API} = process.env;
 const bot = new tgBot(TELEGRAM_API, {polling: true})
@@ -21,11 +18,16 @@ var availableTorrents = []
 
 bot.on('message', async (msg) => {
     try {
-        const {chat, reply_to_message, text, from, via_bot} = msg;
-        let {token, tokenMsg} = await db.findOne({id: from.id})
+        const {chat, reply_to_message, text, via_bot} = msg;
+        let {token, tokenMsg} = {}
+        await db.findOne({id: chat.id})
+            .then(docs => {
+                docs ? {token, tokenMsg} = docs : null
+            })
+            .catch(err => console.log(err.message))
         let message_text = text.toString().toLowerCase()
 
-        if (token !== null) await setAuth(msg, bot)
+        if (token) await setAuth(msg, bot)
 
         if (via_bot && !/^\//.test(message_text)) return null
         else if (message_text === '/start' || reply_to_message) {
@@ -43,7 +45,8 @@ bot.on('message', async (msg) => {
             await bot.sendMessage(chat.id, 'Click below to search using inline mode', {
                 reply_markup: {
                     inline_keyboard: [[{
-                        text: 'Inline search', switch_inline_query_current_chat: ''
+                        text: 'Inline search',
+                        switch_inline_query_current_chat: ''
                     }]]
                 }
             })
@@ -51,7 +54,8 @@ bot.on('message', async (msg) => {
             await bot.sendMessage(chat.id, 'Click below to get a list of all available commands', {
                 reply_markup: {
                     inline_keyboard: [[{
-                        text: 'Help.', switch_inline_query_current_chat: '/'
+                        text: 'Help.',
+                        switch_inline_query_current_chat: '/'
                     }]]
                 }
             })
@@ -59,21 +63,18 @@ bot.on('message', async (msg) => {
             await download(message_text, bot, chat.id)
         } else {
             console.log(message_text)
-            const movie = await movieIndex(message_text)
+            const results = await movieIndex(message_text)
                 .catch((err) => {
                     console.log(err)
-                    bot.sendMessage(from.id, `<code>${err.message}</code>`, {
+                    bot.sendMessage(chat.id, `<code>${err.message}</code>`, {
                         parse_mode: 'HTML'
                     })
-                    throw err.message
+                    throw err
                 });
-            movie.forEach(async (element) => {
+            results.forEach(async (element) => {
                 let {
                     id,
-                    backdrop_path,
                     genre,
-                    original_title,
-                    original_language,
                     overview,
                     poster_path,
                     release_date,
@@ -81,34 +82,37 @@ bot.on('message', async (msg) => {
                     media_type,
                     vote_average
                 } = element
-
                 let messages = `<a href="${poster_path}"><b>${title} </b>(${media_type})  ${genre.toString()}</a>
 Release date: ${release_date}  Rating: ${vote_average}
 
 Plot: ${overview}`
                 if (Date.parse(release_date) > Date.now()) {
-                    bot.sendMessage(from.id, messages, {
-                        parse_mode: 'HTML', cache_time: 0, "reply_markup": {
-                            "inline_keyboard": [[{
-                                "text": "⏬ Download ", "switch_inline_query_current_chat": title
+                    bot.sendMessage(chat.id, messages, {
+                        parse_mode: 'HTML', cache_time: 0,
+                        reply_markup: {
+                            inline_keyboard: [[{
+                                text: "⏬ Download ",
+                                switch_inline_query_current_chat: title
                             }, {
-                                "text": "⌚ Schedule ",
-                                "callback_data": JSON.stringify({schedule: true, id, media_type})
+                                text: "⌚ Schedule ",
+                                callback_data: JSON.stringify({schedule: true, id, media_type})
                             },
                                 {
-                                    "text": "✈ More Info",
-                                    "callback_data": JSON.stringify({more_info: true, id, media_type})
+                                    text: "✈ More Info",
+                                    callback_data: JSON.stringify({more_info: true, id, media_type})
                                 }]]
                         }
                     }).catch((err) => console.log(err.message))
                 } else {
-                    await bot.sendMessage(from.id, messages, {
-                        parse_mode: 'HTML', cache_time: 0, "reply_markup": {
-                            "inline_keyboard": [[{
-                                "text": "⏬ Download ", "switch_inline_query_current_chat": title
+                    await bot.sendMessage(chat.id, messages, {
+                        parse_mode: 'HTML', cache_time: 0,
+                        reply_markup: {
+                            inline_keyboard: [[{
+                                text: "⏬ Download ",
+                                switch_inline_query_current_chat: title
                             }, {
-                                "text": "✈ More Info",
-                                "callback_data": JSON.stringify({more_info: true, id, media_type})
+                                text: "✈ More Info",
+                                callback_data: JSON.stringify({more_info: true, id, media_type})
                             }]]
                         }
                     }).catch((err) => console.log(err.message))
@@ -116,72 +120,65 @@ Plot: ${overview}`
             })
         }
     } catch (err) {
-        console.log(err.message)
+        console.log(err)
     }
 })
 
 bot.on('callback_query', async (callback) => {
 
-    const {from, data} = callback
+    const {message: {chat: {id: chat_id}}, data} = callback
+
     const {id, schedule, more_info, drive_id, media_type} = JSON.parse(data)
 
     if (drive_id) {
         listTeamDrive(callback, bot, data.replace(/^DriveId /, ''))
     } else if (schedule) {
-        await scheduler(await movieIndex({id, media_type}), bot)
+        await scheduler(await movieIndex({id, media_type}), bot, chat_id)
     } else if (more_info) {
         try {
             let {
-                adult,
-                belongs_to_collection,
                 genres,
-                imdb_id,
-                original_language,
-                original_title,
                 overview,
                 poster_path,
-                popularity,
                 release_date,
-                runtime,
-                status,
                 tagline,
                 vote_average,
                 first_air_date,
                 in_production,
-                last_air_date,
-                last_episode_to_air,
-                name,
-                next_episode_to_air,
-                networks,
-                number_of_seasons,
-                original_name, title
+                original_title, title
             } = await movieIndex({id, media_type})
-
             let message =
-                `<a href="${poster_path}"><b>${name || title}</b>  <i>${genres}</i></a>  
-<i>${tagline}</i>
+                `<a href="${poster_path}"><b>${title || original_title}</b> <i>(${media_type}) ${genres}</i></a>  <i>${tagline ?'\n' + tagline : ''}</i>
 
 <b>Type:</b> ${media_type}    <b>Released date:</b> ${first_air_date || release_date}    <b>Ratings:</b> ${vote_average}
 
 <b>Plot:</b> ${overview}`
 
-            if (Date.parse(first_air_date) > Date.now() || Date.parse(release_date) > Date.now()) {
-                await bot.sendMessage(from.id, message, {
-                    parse_mode: 'HTML', cache_time: 0, "reply_markup": {
-                        "inline_keyboard": [[{
-                            "text": "⌚ Schedule",
-                            "callback_data": JSON.stringify({schedule: true, id, media_type})
+            if (Date.parse(first_air_date) > Date.now() || in_production || Date.parse(release_date) > Date.now()) {
+
+                bot.sendMessage(chat_id, message, {
+                    parse_mode: 'HTML', cache_time: 0,
+                    reply_markup: in_production ? {
+                        inline_keyboard: [[{
+                            text: "⌚ Schedule",
+                            callback_data: JSON.stringify({schedule: true, id, media_type})
+                        }, {text: "⏬ Download ", "switch_inline_query_current_chat": title || name}]]
+                    } : {
+                        inline_keyboard: [[{
+                            text: "⌚ Schedule",
+                            callback_data: JSON.stringify({schedule: true, id, media_type})
                         }]]
                     }
-                })
+
+                }).catch(err => console.log(err))
             } else {
-                await bot.sendMessage(from.id, message, {
+                bot.sendMessage(chat_id, message, {
                     parse_mode: 'HTML', cache_time: 0, "reply_markup": {
-                        "inline_keyboard": [[{
-                            "text": "⏬ Download ", "switch_inline_query_current_chat": title || name
+                        inline_keyboard: [[{
+                            text: "⏬ Download ", "switch_inline_query_current_chat": title || name
                         }]]
                     }
-                })
+                }).catch(err => console.log(err.message))
             }
         } catch (err) {
             console.log(err)
@@ -233,7 +230,7 @@ bot.on('inline_query', async ({query, id: queryId}) => {
             .then((data) => {
                 availableTorrents = data
                 let response = []
-                data.forEach(({age, leeches, name, seeds, size, type,provider}, index) => {
+                data.forEach(({age, leeches, name, seeds, size, type, provider}, index) => {
                     response.push({
                             type: 'article',
                             id: index,
@@ -268,19 +265,19 @@ bot.on('inline_query', async ({query, id: queryId}) => {
 
 bot.on('chosen_inline_result', async (chosen_Inline) => {
     try {
-        const {result_id, from: {id}} = chosen_Inline;
-        if (!await userDb.findOne({id: id, token: {$ne: null}})) {
-            await bot.sendMessage(id, 'You\'ll have to authenticate your account so as to be able access your downloads.')
+        console.log(chosen_Inline)
+        const {result_id, from: {id: chat_id}} = chosen_Inline;
+        if (!await userDb.findOne({chat_id: chat_id, token: {$ne: null}})) {
+            bot.sendMessage(chat_id, 'You\'ll have to authenticate your account so as to be able access your downloads.')
+                .then(() => driveInt(chosen_Inline, bot))
                 .catch((err) => console.log(err.message))
-            await driveInt(chosen_Inline, bot)
         } else {
-            if (availableTorrents[result_id]) {
-                const {magnet} = availableTorrents[result_id];
-                download(magnet, bot, id)
-            }
+            const {magnet} = availableTorrents[result_id];
+            availableTorrents[result_id] ?
+                download(magnet, bot, chat_id)
+                : null
         }
     } catch (err) {
         console.log(err)
     }
 })
-

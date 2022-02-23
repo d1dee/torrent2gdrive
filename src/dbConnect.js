@@ -1,12 +1,14 @@
 const db = require('mongoose')
 
-exports.dbConnect =  async () => {
-    const {MONGO} = process.env;
-    await (db.connect(MONGO))
-        .then(() => {
-            console.log('DB connected')
-        })
-        .catch((error) => {
-            console.log('error: ', error.message)
-        })
+exports.dbConnect = () => {
+    return new Promise((resolve, reject) => {
+        const {MONGO} = process.env;
+        db.connect(MONGO)
+            .then((docs) => {
+                resolve(docs)
+            })
+            .catch((error) => {
+                reject(error)
+            })
+    })
 }

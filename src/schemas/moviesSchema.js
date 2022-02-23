@@ -2,10 +2,9 @@ const db = require('mongoose')
 
 const moviesSchema = new db.Schema({
     id: String,
-    userID: String,
-    imdbID: {
-        type: String,
-        unique:true
+    chat_id: String,
+    tmdb_id: {
+        type: String
     },
     title: String,
     type: String,
@@ -28,7 +27,7 @@ const moviesSchema = new db.Schema({
             episode: String,
             downloadDate: Date,
         },
-    provider: Array
+    networks: Array
 })
 
 module.exports = db.model('movies', moviesSchema)

@@ -33,7 +33,6 @@ exports.movieIndex = async (query) => {
                         reject(err.message)
                     })
             }
-
             !data ? reject({message: 'No response received'}) : resolve({
                 media_type: media_type,
                 adult: data.adult,
@@ -42,7 +41,6 @@ exports.movieIndex = async (query) => {
                 id: data.id,
                 imdb_id: data.imdb_id,
                 original_language: data.original_language,
-                original_title: data.original_title,
                 overview: data.overview,
                 poster_path: secure_base_url + '/original/' + data.poster_path,
                 popularity: data.popularity,
@@ -55,12 +53,11 @@ exports.movieIndex = async (query) => {
                 in_production: data.in_production,
                 last_air_date: data.last_air_date,
                 last_episode_to_air: data.last_episode_to_air,
-                name: data.name,
                 next_episode_to_air: data.next_episode_to_air,
                 networks: data.networks,
                 number_of_seasons: data.number_of_seasons,
-                original_name: data.original_name,
-                title: data.title
+                original_title: data.original_title || data.original_name,
+                title: data.title || data.name
             })
         })
     } else {
@@ -107,7 +104,7 @@ exports.movieIndex = async (query) => {
 /**
  *
  * @param query {String} Search term
- * @param site {String} Used when searching in a specific site
+ * @param site {String=} Used when searching in a specific site
  * @returns {Promise<*[]>}
  */
 exports.torrentDownload = async (query, site) => {

@@ -14,7 +14,7 @@ const oAuth2Client = new google.auth.OAuth2(CLIENTID, CLIENTSECRET, REDIRECTURIS
  *
  * @param msg {Object} Message object of the received message
  * @param bot {Object} Initialized Tg-bot object
- * @param replyMsgId
+ * @param replyMsgId {Number=}
  * @returns {Promise<void>}
  */
 exports.driveInt = async (msg, bot, replyMsgId) => {
@@ -27,7 +27,8 @@ exports.driveInt = async (msg, bot, replyMsgId) => {
             try {
                 console.log('Waiting for auth')
                 let auth = await bot.sendMessage(id, `Click on the below link to authorize this app to write to your Google Drive ${authUrl}`, {
-                    parse_mode: 'HTML', "reply_markup": {
+                    parse_mode: 'HTML',
+                    reply_markup: {
                         force_reply: true
                     }
                 }).catch(err => console.log(err.message))
