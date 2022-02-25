@@ -20,8 +20,8 @@ exports.movieIndex = async (query) => {
                     .then((response) => {
                         data = response.data
                     }).catch(err => {
-                        console.log(err.message);
-                        reject(err.message)
+                        console.log(err);
+                        reject(err)
                     })
             } else if (media_type === 'tv') {
                 await axios.get(`https://api.themoviedb.org/3/tv/${id}?api_key=${TMDB_API}&language=en-US`)
@@ -29,35 +29,64 @@ exports.movieIndex = async (query) => {
                         data = response.data
                     })
                     .catch(err => {
-                        console.log(err.message);
-                        reject(err.message)
+                        console.log(err);
+                        reject(err)
                     })
             }
+            const {
+                first_air_date,
+                original_name,
+                genres,
+                runtime,
+                belongs_to_collection,
+                networks,
+                next_episode_to_air,
+                poster_path,
+                status,
+                in_production,
+                number_of_seasons,
+                release_date,
+                last_air_date,
+                overview,
+                tagline,
+                adult,
+                popularity,
+                original_title,
+                original_language,
+                name,
+                title,
+                last_episode_to_air,
+                imdb_id,
+                vote_average
+            } = data;
+            let genre = []
+            genres.forEach((element) => {
+                genre.push(element.name)
+            })
             !data ? reject({message: 'No response received'}) : resolve({
-                media_type: media_type,
-                adult: data.adult,
-                belongs_to_collection: data.belongs_to_collection,
-                genres: genre_to_string(data.genres),
-                id: data.id,
-                imdb_id: data.imdb_id,
-                original_language: data.original_language,
-                overview: data.overview,
-                poster_path: secure_base_url + '/original/' + data.poster_path,
-                popularity: data.popularity,
-                release_date: data.release_date,
-                runtime: data.runtime,
-                status: data.status,
-                tagline: data.tagline,
-                vote_average: data.vote_average,
-                first_air_date: data.first_air_date,
-                in_production: data.in_production,
-                last_air_date: data.last_air_date,
-                last_episode_to_air: data.last_episode_to_air,
-                next_episode_to_air: data.next_episode_to_air,
-                networks: data.networks,
-                number_of_seasons: data.number_of_seasons,
-                original_title: data.original_title || data.original_name,
-                title: data.title || data.name
+                media_type,
+                adult,
+                belongs_to_collection,
+                genres: genre.toString(),
+                id,
+                imdb_id,
+                original_language,
+                overview,
+                poster_path: secure_base_url + '/original/' + poster_path,
+                popularity,
+                release_date: release_date || first_air_date,
+                runtime,
+                status,
+                tagline,
+                vote_average,
+                in_production,
+                last_air_date,
+                last_episode_to_air,
+                next_episode_to_air,
+                networks,
+                number_of_seasons,
+                original_title: original_title || original_name,
+                title: title || name
             })
         })
     } else {
@@ -109,12 +138,13 @@ exports.movieIndex = async (query) => {
  */
 exports.torrentDownload = async (query, site) => {
     return new Promise((resolve, reject) => {
+        console.log(query)
         let returnData = []
         if (!site) site = 'all'
         axios.get(`https://torrent-api-d1dee.koyeb.app/api/${site}/${query}`)
             .then(({data}) => {
                 if (!data) reject({search_error: 'No data received'})
-                if (Array.isArray(data[0])) {
+                if (Array.isArray(data)) {
                     data.forEach((e) => {
                         if (!e) return
                         e.forEach(({DateUploaded, Leechers, Magnet, Name, Seeders, Size, UploadedBy, Category}) => {
@@ -133,6 +163,7 @@ exports.torrentDownload = async (query, site) => {
                         })
                     })
                 }
+                console.log('Got ',returnData.length, ' for query')
                 resolve((returnData.sort((a, b) => {
                     return b.seeds - a.seeds;
                 })).slice(0, 50))

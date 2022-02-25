@@ -16,33 +16,39 @@ const bot = new tgBot(TELEGRAM_API, {polling: true})
 
 var availableTorrents = []
 
-bot.on('message', async (msg) => {
+bot.on('message', async (message) => {
     try {
-        const {chat, reply_to_message, text, via_bot} = msg;
-        let {token, tokenMsg} = {}
-        await db.findOne({id: chat.id})
-            .then(docs => {
-                docs ? {token, tokenMsg} = docs : null
-            })
-            .catch(err => console.log(err.message))
+        const {chat: {id: chat_id}, text, via_bot, reply_to_message} = message;
+
+        let {reply_to_message_id} = {}
         let message_text = text.toString().toLowerCase()
 
-        if (token) await setAuth(msg, bot)
 
-        if (via_bot && !/^\//.test(message_text)) return null
-        else if (message_text === '/start' || reply_to_message) {
-            if (reply_to_message && tokenMsg === reply_to_message.message_id) {
-                await driveInt(msg, bot, tokenMsg)
-            } else if (message_text === '/start') {
-                await driveInt(msg, bot)
-                await bot.sendMessage(chat.id, `Welcome to Torrent2GoogleDrive. This bot can help you easily upload any torrent to Google Drive. Type <code>\/help </code> for Help`, {
-                    reply_markup: {parse_mode: 'HTML'}
-                })
-            }
+        let {token, reply_message_id} = {}
+        await db.findOne({chat_id: chat_id})
+            .then(docs => {
+                docs ? {token, reply_message_id} = docs : null
+            })
+            .catch(err => console.log(err));
+
+        (message_text !== '/start' && reply_to_message) ? {message_id: reply_to_message_id} = reply_to_message : undefined
+
+        token ? await setAuth(chat_id, bot) : undefined
+
+        if (reply_to_message_id === reply_message_id) {
+            driveInt(message, bot, reply_message_id)
+        }
+        else if (via_bot && !/^\//.test(message_text))
+            return undefined
+        else if (message_text === '/start') {
+            await driveInt(message, bot)
+            bot.sendMessage(chat_id, `Welcome to Torrent2GoogleDrive. This bot can help you easily upload any torrent to Google Drive. Type <code>\/help </code> for Help`, {
+                reply_markup: {parse_mode: 'HTML'}
+            })
         } else if (message_text === '/list_team_drive') {
-            await listTeamDrive(msg, bot)
+            await listTeamDrive(message, bot)
         } else if (message_text === '/inline_search') {
-            await bot.sendMessage(chat.id, 'Click below to search using inline mode', {
+            bot.sendMessage(chat_id, 'Click below to search using inline mode', {
                 reply_markup: {
                     inline_keyboard: [[{
                         text: 'Inline search',
@@ -51,7 +57,7 @@ bot.on('message', async (msg) => {
                 }
             })
         } else if (message_text === '/help') {
-            await bot.sendMessage(chat.id, 'Click below to get a list of all available commands', {
+            bot.sendMessage(chat_id, 'Click below to get a list of all available commands', {
                 reply_markup: {
                     inline_keyboard: [[{
                         text: 'Help.',
@@ -60,13 +66,13 @@ bot.on('message', async (msg) => {
                 }
             })
         } else if (/^magnet:.*/ig.test(message_text)) {
-            await download(message_text, bot, chat.id)
+            download(message_text, bot, chat_id)
         } else {
-            console.log(message_text)
+            if (reply_to_message_id) return
             const results = await movieIndex(message_text)
                 .catch((err) => {
                     console.log(err)
-                    bot.sendMessage(chat.id, `<code>${err.message}</code>`, {
+                    bot.sendMessage(chat_id, `<code>${err}</code>`, {
                         parse_mode: 'HTML'
                     })
                     throw err
@@ -87,13 +93,10 @@ Release date: ${release_date}  Rating: ${vote_average}
 
 Plot: ${overview}`
                 if (Date.parse(release_date) > Date.now()) {
-                    bot.sendMessage(chat.id, messages, {
+                    bot.sendMessage(chat_id, messages, {
                         parse_mode: 'HTML', cache_time: 0,
                         reply_markup: {
                             inline_keyboard: [[{
-                                text: "⏬ Download ",
-                                switch_inline_query_current_chat: title
-                            }, {
                                 text: "⌚ Schedule ",
                                 callback_data: JSON.stringify({schedule: true, id, media_type})
                             },
@@ -102,9 +105,9 @@ Plot: ${overview}`
                                     callback_data: JSON.stringify({more_info: true, id, media_type})
                                 }]]
                         }
-                    }).catch((err) => console.log(err.message))
+                    }).catch((err) => console.log(err))
                 } else {
-                    await bot.sendMessage(chat.id, messages, {
+                    await bot.sendMessage(chat_id, messages, {
                         parse_mode: 'HTML', cache_time: 0,
                         reply_markup: {
                             inline_keyboard: [[{
@@ -115,7 +118,7 @@ Plot: ${overview}`
                                 callback_data: JSON.stringify({more_info: true, id, media_type})
                             }]]
                         }
-                    }).catch((err) => console.log(err.message))
+                    }).catch((err) => console.log(err))
                 }
             })
         }
@@ -127,11 +130,10 @@ Plot: ${overview}`
 bot.on('callback_query', async (callback) => {
 
     const {message: {chat: {id: chat_id}}, data} = callback
-
     const {id, schedule, more_info, drive_id, media_type} = JSON.parse(data)
-
+    console.log(data)
     if (drive_id) {
-        listTeamDrive(callback, bot, data.replace(/^DriveId /, ''))
+        listTeamDrive(callback, bot, data)
     } else if (schedule) {
         await scheduler(await movieIndex({id, media_type}), bot, chat_id)
     } else if (more_info) {
@@ -143,22 +145,22 @@ bot.on('callback_query', async (callback) => {
                 release_date,
                 tagline,
                 vote_average,
-                first_air_date,
                 in_production,
                 original_title, title
-            } = await movieIndex({id, media_type})
+            } = await movieIndex({id, media_type}).catch(err => {
+                console.log(err)
+            })
             let message =
-                `<a href="${poster_path}"><b>${title || original_title}</b> <i>(${media_type}) ${genres}</i></a>  <i>${tagline ?'\n' + tagline : ''}</i>
+                `<a href="${poster_path}"><b>${title || original_title}</b> <i>(${media_type}) ${genres}</i></a>  <i>${tagline ? '\n' + tagline : ''}</i>
 
-<b>Type:</b> ${media_type}    <b>Released date:</b> ${first_air_date || release_date}    <b>Ratings:</b> ${vote_average}
+<b>Type:</b> ${media_type}    <b>Released date:</b> ${release_date}    <b>Ratings:</b> ${vote_average}
 
 <b>Plot:</b> ${overview}`
 
-            if (Date.parse(first_air_date) > Date.now() || in_production || Date.parse(release_date) > Date.now()) {
-
+            if (Date.parse(release_date) > Date.now() || in_production) {
                 bot.sendMessage(chat_id, message, {
                     parse_mode: 'HTML', cache_time: 0,
-                    reply_markup: in_production ? {
+                    reply_markup: in_production && Date.parse(release_date) < Date.now() ? {
                         inline_keyboard: [[{
                             text: "⌚ Schedule",
                             callback_data: JSON.stringify({schedule: true, id, media_type})
@@ -178,7 +180,7 @@ bot.on('callback_query', async (callback) => {
                             text: "⏬ Download ", "switch_inline_query_current_chat": title || name
                         }]]
                     }
-                }).catch(err => console.log(err.message))
+                }).catch(err => console.log(err))
             }
         } catch (err) {
             console.log(err)
@@ -265,12 +267,12 @@ bot.on('inline_query', async ({query, id: queryId}) => {
 
 bot.on('chosen_inline_result', async (chosen_Inline) => {
     try {
-        console.log(chosen_Inline)
-        const {result_id, from: {id: chat_id}} = chosen_Inline;
+        const {query, result_id, from: {id: chat_id}} = chosen_Inline
+        if ((/^\//g).test(query)) return
         if (!await userDb.findOne({chat_id: chat_id, token: {$ne: null}})) {
             bot.sendMessage(chat_id, 'You\'ll have to authenticate your account so as to be able access your downloads.')
                 .then(() => driveInt(chosen_Inline, bot))
-                .catch((err) => console.log(err.message))
+                .catch((err) => console.log(err))
         } else {
             const {magnet} = availableTorrents[result_id];
             availableTorrents[result_id] ?

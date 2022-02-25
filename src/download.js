@@ -10,6 +10,7 @@ const {upload} = require("./upload");
  */
 exports.download = async (magnet, bot, chat_id, _id) => {
     try {
+        console.log(magnet)
         let engine = torrentStream(magnet, {
             connections: 10000,     // Max amount of peers to be connected to.
             uploads: 100,          // Number of upload slots.
@@ -21,7 +22,7 @@ exports.download = async (magnet, bot, chat_id, _id) => {
         engine.on('ready', async () => {
             let {length, pieceLength, lastPieceLength} = engine.torrent,
                 totalPieces = ((length - lastPieceLength) / pieceLength) + 1,
-                pieceCount = 0, last_percentage, {message_id} =
+                pieceCount = 0, last_percentage, {message_id} = {}
                     chat_id ? {message_id} = await bot.sendMessage(chat_id, `Download started for ${engine.torrent.name}`)
                         .catch(err => console.log(err.message)) : undefined
             const {files} = engine

@@ -52,7 +52,7 @@ exports.cron = async (bot) => {
                     } = tv_show;
                     if (!in_production) {
                         lastEpisode = last_episode_to_air.air_date
-                        lastEpisodeAired = seasonEpisode(last_episode_to_air.season_number, last_episode_to_air.episode_number)
+                        lastEpisodeAired = exports.seasonEpisode(last_episode_to_air.season_number, last_episode_to_air.episode_number)
                         await db.updateOne({_id: _id}, {
                             release_date: first_air_date,
                             complete: true,
@@ -62,11 +62,11 @@ exports.cron = async (bot) => {
                     } else if (in_production) {
                         if (last_episode_to_air) {
                             lastEpisode = last_episode_to_air.air_date
-                            lastEpisodeAired = seasonEpisode(last_episode_to_air.season_number, last_episode_to_air.episode_number)
+                            lastEpisodeAired = exports.seasonEpisode(last_episode_to_air.season_number, last_episode_to_air.episode_number)
                         }
                         if (next_episode_to_air) {
                             nextEpisode = next_episode_to_air.air_date
-                            nextEpisodeAired = seasonEpisode(next_episode_to_air.season_number, next_episode_to_air.episode_number)
+                            nextEpisodeAired = exports.seasonEpisode(next_episode_to_air.season_number, next_episode_to_air.episode_number)
                         }
                         await db.updateOne({_id: _id}, {
                             release_date: first_air_date, episode: {
@@ -146,20 +146,15 @@ async function cronDownload(bot) {
  * @param episode {Number} [undefined] Episode number
  * @returns {string} Returns a combination of Season and Episode number in the format of S02E05
  */
-function seasonEpisode(season, episode) {
-    if (season < 10) {
-        if (episode < 10) {
-            return 'S0' + season + 'E0' + episode
-        } else {
-            return 'S0' + season + 'E' + episode
-        }
-    } else {
-        if (episode < 10) {
-            return 'S' + season + 'E0' + episode
-        } else {
-            return 'S' + season + 'E' + episode
-        }
-    }
+exports.seasonEpisode = (season, episode) => {
+    season = season ? season : season = 1
+    episode = episode ? episode : episode = 1
+    return (season < 10)
+        ? ((episode < 10)
+            ? 'S0' + season + 'E0' + episode
+            : 'S0' + season + 'E' + episode)
+        : (episode < 10) ? 'S' + season + 'E0' + episode
+            : 'S' + season + 'E' + episode
 }
 
 exports.tmdb_config = async () => {

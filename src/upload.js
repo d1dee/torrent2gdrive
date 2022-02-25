@@ -12,175 +12,179 @@ const oAuth2Client = new google.auth.OAuth2(CLIENTID, CLIENTSECRET, REDIRECTURIS
 
 /**
  *
- * @param msg {Object} Message object of the received message
+ * @param message {Object} Message object of the received message
  * @param bot {Object} Initialized Tg-bot object
- * @param replyMsgId {Number=}
+ * @param reply_message_id {Number=}
  * @returns {Promise<void>}
  */
-exports.driveInt = async (msg, bot, replyMsgId) => {
+exports.driveInt = async (message, bot, reply_message_id) => {
     try {
         let authUrl = oAuth2Client.generateAuthUrl({
             access_type: 'offline', scope: SCOPES,
         });
-        const {first_name, username, id, language_code, is_bot} = msg.from;
-        if (!replyMsgId) {
+        const {text, from: {first_name, username, id: chat_id, language_code, is_bot}} = message
+        if (!reply_message_id) {
             try {
                 console.log('Waiting for auth')
-                let auth = await bot.sendMessage(id, `Click on the below link to authorize this app to write to your Google Drive ${authUrl}`, {
+                const {message_id} = await bot.sendMessage(chat_id, `Click on the below link to authorize this app to write to your Google Drive ${authUrl}`, {
                     parse_mode: 'HTML',
                     reply_markup: {
                         force_reply: true
                     }
-                }).catch(err => console.log(err.message))
-                await userDb.create({
-                    id: id,
+                }).catch(err => console.log(err))
+                userDb.create({
+                    chat_id: chat_id,
                     is_bot: is_bot,
                     start_date: (Date.now()).toString(),
                     first_name: first_name,
                     username: username,
                     lang: language_code,
-                    tokenMsg: auth.message_id
+                    reply_message_id: message_id
                 }, async (err) => {
-                    if (err && err.code === 11000) {
-                        await userDb.updateOne({id: id}, {tokenMsg: (auth.message_id).toString()})
-                    }
+                    console.log(chat_id)
+                    err.code === 11000 ?
+                        await userDb.updateOne({chat_id: chat_id}, {reply_message_id: Number(message_id)}) : console.log(err)
                 })
             } catch (err) {
-                console.log(err.message)
+                console.log(err)
             }
-        } else if ((replyMsgId)) {
+        } else if (reply_message_id) {
             try {
-                oAuth2Client.getToken(msg.text, async (err, token) => {
+                oAuth2Client.getToken(text, async (err, token) => {
                     if (err) {
-                        await bot.sendMessage(id, `Token error, kindly reAuthenticate <code> ${err.message} </code>`, {parse_mode: 'HTML'}).catch(err => console.log(err.message))
+                        bot.sendMessage(chat_id, `Token error, kindly reAuthenticate <code> ${err} </code>`,
+                            {
+                                parse_mode: 'HTML'
+                            })
+                            .catch(err => console.log(err))
                     } else {
                         oAuth2Client.setCredentials(token);
-                        await userDb.updateOne({id: id}, {
+                        await userDb.updateOne({chat_id: chat_id}, {
                             token: JSON.stringify(token)
                         })
-                        bot.sendMessage(id, 'User token saved').catch(err => console.log(err.message))
+                        bot.sendMessage(chat_id, 'User token saved').catch(err => console.log(err))
                     }
                 })
             } catch (err) {
-                console.log(err.message)
+                console.log(err)
             }
         }
     } catch (err) {
-        console.log(err.message)
+        console.log(err)
     }
 }
 
-exports.setAuth = async (msg) => {
+exports.setAuth = async (chat_id) => {
     try {
-        const {id} = msg.from;
-        let user = await userDb.findOne({id: id, token: {$ne: null}})
-        oAuth2Client.setCredentials(JSON.parse(user.token));
+        let {token} = await userDb.findOne({chat_id: chat_id, token: {$ne: null}})
+        oAuth2Client.setCredentials(JSON.parse(token));
     } catch (err) {
-        console.log(err.message)
+        console.log(err)
     }
 }
 
-exports.listTeamDrive = async (msg, bot, driveId) => {
+exports.listTeamDrive = async (msg, bot, drive_id) => {
     try {
-        const {message_id, text, from} = msg
-        if (!await userDb.findOne({id: from.id, token: {$ne: null}})) {
-            bot.sendMessage(from.id, 'Authorize google drive before using this function.',
+        const {from: {id: chat_id, first_name, username}} = msg
+        const user_db = await userDb.findOne({chat_id: chat_id, token: {$ne: null}})
+        if (!user_db) {
+            bot.sendMessage(chat_id, 'Authorize google drive before using this function.',
                 {
                     force_reply: true,
                     input_field_placeholder: '/start'
                 })
             return
         }
+        if (user_db.drive_id && !drive_id) {
+            bot.sendMessage(chat_id, 'Existing Drive Id will be overwritten.')
+        }
         const drive = google.drive({version: 'v3', auth: oAuth2Client})
-        if (driveId) {
-            await drive.files.create({
+        if (drive_id) {
+            const {drive_id: id} = JSON.parse(drive_id)
+            drive.files.create({
                 supportsAllDrives: true, //allows uploading to TeamDrive
                 requestBody: {
                     name: "Torrent Download", //name the file will go by at Google Drive (extension determines the file type if mimetype is ignored)
-                    parents: [driveId], //parent folder where to upload or work on
+                    parents: [id], //parent folder where to upload or work on
                     mimeType: 'application/vnd.google-apps.folder',
                 }
             }).then(async (response) => {
                 let {data: {id, name}} = response
-                await userDb.updateOne({id: from.id}, {driveId: id}, (err) => {
-                    if (err) return
-                    bot.sendMessage(from.id,
+                await userDb.updateOne({chat_id: chat_id}, {drive_id: id}, (err) => {
+                    if (err) return console.log(err)
+                    bot.sendMessage(chat_id,
                         `Preferred team drive saved successfully. Your downloads will be saved at <code>${name}</code>`,
                         {parse_mode: 'HTML'})
-                    console.log(`Drive Id for user ${from.first_name || from.username} saved successfully.`)
-
+                    console.log(`Drive Id for user ${first_name || username} saved successfully.`)
                 })
             })
-                .catch(err => console.log(err.message))
+                .catch(err => console.log(err))
         } else {
-            await drive.teamdrives.list({fields: '*'})
-                .then(async (res) => {
-                    const {data: {nextPageToken, teamDrives}} = res
-                    if (!teamDrives.length) {
-                        await bot.sendMessage(from.id, 'There is no team drive associated with your account.' +
-                            '\nAll uploads will be on you main drive.\nNote: <code>Personal accounts are limited to 15GB</code>',
+            await drive.teamdrives.list({fields: '*', pageSize: 100})
+                .then(async (response) => {
+                    const {data: { teamDrives: team_drives}} = response
+                    if (!team_drives.length) {
+                        await bot.sendMessage(chat_id, 'There\'s no team drive associated with your account.' +
+                            '\n All uploads will be on you main drive.\nNote: <code>Personal accounts are limited to 15GB</code>',
                             {parse_mode: 'HTML'})
-                        await drive.files.create({
+                        drive.files.create({
                             supportsAllDrives: true, //allows uploading to TeamDrive
                             requestBody: {
                                 name: "Torrent Download", //name the file will go by at Google Drive (extension determines the file type if mimetype is ignored)
-                                //parents: [driveId], //parent folder where to upload or work on
                                 mimeType: 'application/vnd.google-apps.folder',
                             }
                         }).then(async (response) => {
                             let {data: {id, name}} = response
-                            await userDb.updateOne({id: from.id}, {driveId: id}, (err) => {
-                                if (err) return
-                                bot.sendMessage(from.id,
+                            userDb.updateOne({chat_id: chat_id}, {drive_id: id}, (err) => {
+                                if (err) return console.log(err)
+                                bot.sendMessage(chat_id,
                                     `Preferred team drive saved successfully. Your downloads will be saved at <code>${name}</code>`,
                                     {parse_mode: 'HTML'})
-                                console.log(`Drive Id for user ${from.first_name || from.username} saved successfully.`)
-
+                                console.log(`Drive Id for user ${first_name || username} saved successfully.`)
                             })
-
                         })
-                            .catch(err => console.log(err.message))
+                            .catch(err => console.log(err))
                     } else {
                         let keyboard = []
-                        teamDrives.forEach(async (e) => {
-                            const {id, name, capabilities: {canAddChildren}} = e
+                        team_drives.forEach(async (element) => {
+                            const {id, name, capabilities: {canAddChildren}} = element
                             if (!canAddChildren) return
                             keyboard.push([{
-                                text: `${name}`, callback_data: `DriveId ${id}`
+                                text: `${name}`, callback_data: JSON.stringify({drive_id: id})
+
                             }])
                         })
-                        await bot.sendMessage(from.id, 'Please select a drive below:', {
+                        bot.sendMessage(chat_id, 'Please select a drive below:', {
                             reply_markup: {
                                 inline_keyboard: keyboard
                             }
                         })
                     }
                 })
-
         }
     } catch (err) {
-        console.log(err.message)
+        console.log(err)
     }
 }
 /**
  * @param torrent {object} Has torrent path and torrent name which are needed in order to map the same folder structure in Google Drive
- * @param chatId {object || string } Has either chatId about the torrent ie chatId, season when used by cron job || the userID when used by telegram message
+ * @param chat_id {object || string } Has either chat_id about the torrent ie chat_id, season when used by cron job || the userID when used by telegram message
  * @param bot {object} telegram bot initialized at index
  * @param {string} _id mongo _id of the current downloading instance. Only supplied by cron Job
  */
-exports.upload = async (torrent, chatId, bot, _id) => {
+exports.upload = async (torrent, bot, chat_id, _id) => {
 
     try {
-        let user = await userDb.findOne({id: chatId, token: {$ne: null}}), fileArray = [],
-            torPath = path.join(__dirname, 'downloads', torrent.name)
-        const {token, driveId} = user;
+        let user = await userDb.findOne({chat_id: chat_id, token: {$ne: null}}), fileArray = [],
+            torrent_path = path.join(__dirname, 'downloads', torrent.name)
+        const {token, drive_id} = user;
         oAuth2Client.setCredentials(JSON.parse(token));
         const drive = google.drive({version: 'v3', auth: oAuth2Client})
-        if (fs.statSync(torPath).isDirectory()) {
+        if (fs.statSync(torrent_path).isDirectory()) {
             /**
              * Maps the entire torrent folder to an array fileArray
              */
-            file.walkSync(path.normalize(torPath), async (fsPath, dirs, files) => {
+            file.walkSync(path.normalize(torrent_path), async (fsPath, dirs, files) => {
                 fileArray.push({
                     fsPath: fsPath, dirName: dirs, files: files, id: null, parentId: null
                 })
@@ -196,18 +200,17 @@ exports.upload = async (torrent, chatId, bot, _id) => {
                 if (files.length > 0) {
                     //use the new id assigned as the parent
                     for await (let filename of files) {
-                        console.log(filename)
                         await uploadFile(fileArray[e], filename)
                     }
                 }
             }
-        } else if (fs.statSync(torPath).isFile()) {
-            await uploadFile(torPath, torrent.name)
+        } else if (fs.statSync(torrent_path).isFile()) {
+            await uploadFile(torrent_path, torrent.name)
         }
-        
+
         //create folder for the torrent
         async function makeDir(dirName, parent) {
-            if (!parent) parent = driveId
+            if (!parent) parent = drive_id
             return await drive.files.create({
                 supportsAllDrives: true, //allows to upload to TeamDrive
                 requestBody: {
@@ -215,7 +218,7 @@ exports.upload = async (torrent, chatId, bot, _id) => {
                     parents: [`${parent}`], //parent folder where to upload or work on
                     mimeType: 'application/vnd.google-apps.folder',
                 }
-            }).catch(err => console.log(err.message))
+            }).catch(err => console.log(err))
         }
 
         /**
@@ -226,7 +229,7 @@ exports.upload = async (torrent, chatId, bot, _id) => {
             const {id, fsPath} = filePath;
             let fsMedia, parent = id
 
-            if (!id) parent = driveId
+            if (!id) parent = drive_id
             if (fsPath) {
                 let filePath = path.join(fsPath, filename)
                 if (fs.statSync(filePath).isFile()) {
@@ -253,18 +256,18 @@ exports.upload = async (torrent, chatId, bot, _id) => {
                     retry: 10, retryDelay: 2000, onRetryAttempt: (err) => {
                         const {msgEdit, name} = torrent;
                         bot.editMessageText(`Upload failed for ${name} retrying...`, {
-                            chat_id: chatId, message_id: msgEdit.message_id
+                            chat_id: chat_id, message_id: msgEdit.message_id
                         }).catch(err => console.log(err))
-                        console.log(err.message)
+                        console.log(err)
                     }
                 }, retry: true
             }, async (err) => {
                 if (err) return console.log(err)
-                const {msgEdit, name} = torrent;
-                await fs.rm(torPath, {recursive: true, force: true}, async () => {
+                const {message_id, name} = torrent;
+                await fs.rm(torrent_path, {recursive: true, force: true}, async () => {
                     await bot.editMessageText(`Upload done for ${name}`, {
-                        chat_id: chatId, message_id: msgEdit.message_id
-                    }).catch(err => console.log(err.message))
+                        chat_id: chat_id, message_id: message_id
+                    }).catch(err => console.log(err))
                 })
                 if (_id) {
                     await db.findOne({_id: _id})
@@ -278,21 +281,21 @@ exports.upload = async (torrent, chatId, bot, _id) => {
                                     fileName: name,
                                 }
                             }).catch((err) => {
-                                console.log(err.message)
+                                console.log(err)
                             })
                         })
                 }
             })
         }
     } catch (err) {
-        console.log(err.message)
-        if (err.message === 'invalid_grant') {
-            await userDb.updateOne({id: chatId}, {token: {}})
-            await bot.sendMessage(chatId, 'Try authenticating G-drive', {
+        console.log(err)
+        if (err === 'invalid_grant') {
+            await userDb.updateOne({chat_id: chat_id}, {token: {}})
+            await bot.sendMessage(chat_id, 'Try authenticating G-drive', {
                 force_reply: true,
                 input_field_placeholder: '/start'
             })
-                .catch(err => console.log(err.message))
+                .catch(err => console.log(err))
         }
     }
 }
