@@ -37,13 +37,12 @@ bot.on('message', async (message) => {
 
         if (reply_to_message_id === reply_message_id) {
             driveInt(message, bot, reply_message_id)
-        }
-        else if (via_bot && !/^\//.test(message_text))
+        } else if (via_bot && !/^\//.test(message_text))
             return undefined
         else if (message_text === '/start') {
             await driveInt(message, bot)
-            bot.sendMessage(chat_id, `Welcome to Torrent2GoogleDrive. This bot can help you easily upload any torrent to Google Drive. Type <code>\/help </code> for Help`, {
-                reply_markup: {parse_mode: 'HTML'}
+            bot.sendMessage(chat_id, `Welcome to Torrent2GoogleDrive. This bot can help you easily upload any torrent to Google Drive. Type <code>/help </code> for Help`, {
+                parse_mode: 'HTML'
             })
         } else if (message_text === '/list_team_drive') {
             await listTeamDrive(message, bot)
@@ -72,7 +71,7 @@ bot.on('message', async (message) => {
             const results = await movieIndex(message_text)
                 .catch((err) => {
                     console.log(err)
-                    bot.sendMessage(chat_id, `<code>${err}</code>`, {
+                    bot.sendMessage(chat_id, `<code>${err.message}</code>`, {
                         parse_mode: 'HTML'
                     })
                     throw err

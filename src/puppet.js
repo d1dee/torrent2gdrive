@@ -143,8 +143,9 @@ exports.torrentDownload = async (query, site) => {
         if (!site) site = '1337x'
         axios.get(`https://torrent-api-d1dee.koyeb.app/api/${site}/${query}`)
             .then(({data}) => {
-                if (!data) reject({search_error: 'No data received'})
-                if (Array.isArray(data)) {
+               // console.log(data)
+                if (!data) reject({search_error: 'No data received'})       
+                if (Array.isArray(data[0])) {
                     data.forEach((e) => {
                         if (!e) return
                         e.forEach(({DateUploaded, Leechers, Magnet, Name, Seeders, Size, UploadedBy, Category}) => {
@@ -163,7 +164,23 @@ exports.torrentDownload = async (query, site) => {
                         })
                     })
                 }
-                console.log('Got ',returnData.length, ' for query')
+                else {
+                    data.forEach(({DateUploaded, Leechers, Magnet, Name, Seeders, Size, UploadedBy, Category}) => {
+                        if (!(/^magnet:\?/i.test(Magnet)) || !Seeders || !Name || !Size ||
+                            parseInt(Seeders) < 20 || parseInt(Seeders) > 10000 || parseInt(Seeders) < parseInt(Leechers)) return
+                        returnData.push({
+                            name: Name,
+                            size: Size,
+                            age: DateUploaded ? DateUploaded : '',
+                            seeds: Seeders,
+                            magnet: Magnet,
+                            provider: UploadedBy ? UploadedBy : '',
+                            leeches: Leechers ? Leechers : '',
+                            type: Category ? Category : ''
+                        })
+                    })
+                }
+                console.log('Got ',returnData.length, ' for ',query)
                 resolve((returnData.sort((a, b) => {
                     return b.seeds - a.seeds;
                 })).slice(0, 50))
