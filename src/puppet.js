@@ -142,7 +142,7 @@ exports.torrentDownload = async (query, site) => {
         //heroku blocked sites
         //1337x,
         let returnData = []
-        if (!site) site = '1337x'
+        if (!site) site = 'all'
         axios.get(`https://torrent-api-d1dee.koyeb.app/api/${site}/${query}`)
             .then(({data}) => {
                // console.log(data)

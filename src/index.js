@@ -266,7 +266,6 @@ bot.on('inline_query', async ({query, id: queryId}) => {
 
 bot.on('chosen_inline_result', async (chosen_Inline) => {
     try {
-        console.log(chosen_Inline)
         const {query, result_id, from: {id: chat_id}} = chosen_Inline
         if ((/^\//g).test(query)) return
         if (!await userDb.findOne({chat_id: chat_id, token: {$ne: null}})) {
@@ -275,9 +274,6 @@ bot.on('chosen_inline_result', async (chosen_Inline) => {
                 .catch((err) => console.log(err))
         } else {
             const {magnet} = availableTorrents[result_id];
-
-            console.log(availableTorrents[result_id])
-
             availableTorrents[result_id] ?
                 download(magnet, bot, chat_id)
                 : null
