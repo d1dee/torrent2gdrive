@@ -2,7 +2,7 @@ const db = require('mongoose')
 
 const userSchema = new db.Schema({
     chat_id: {
-        type: String,
+        type: Number,
         unique: true
     },
     is_bot: Boolean,

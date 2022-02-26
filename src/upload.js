@@ -22,7 +22,7 @@ exports.driveInt = async (message, bot, reply_message_id) => {
         let authUrl = oAuth2Client.generateAuthUrl({
             access_type: 'offline', scope: SCOPES,
         });
-        const {text, from: {first_name, username, id: chat_id, language_code, is_bot}} = message
+        let {text, from: {first_name, username, id: chat_id, language_code, is_bot}} = message
         if (!reply_message_id) {
             try {
                 console.log('Waiting for auth')
@@ -32,20 +32,25 @@ exports.driveInt = async (message, bot, reply_message_id) => {
                         force_reply: true
                     }
                 }).catch(err => console.log(err))
-                userDb.create({
+                console.log(chat_id, first_name)
+               await userDb.create({
                     chat_id: chat_id,
                     is_bot: is_bot,
-                    start_date: (Date.now()).toString(),
+                    start_date: Date.now(),
                     first_name: first_name,
                     username: username,
                     lang: language_code,
                     reply_message_id: message_id
                 }, async (err) => {
-                    console.log(chat_id)
-                    err.code === 11000 ?
-                        await userDb.updateOne({chat_id: chat_id}, {reply_message_id: Number(message_id)}) : console.log(err)
-                })
-            } catch (err) {
+                   if (err){
+                       console.log(err.message);
+                       err.code === 11000 ? await userDb.updateOne({chat_id: chat_id},{reply_message_id:message_id}) : console.log('err')
+                   }
+               })/*.catch(async (err) =>{
+
+               })*/
+            }
+            catch (err) {
                 console.log(err)
             }
         } else if (reply_message_id) {
@@ -122,7 +127,7 @@ exports.listTeamDrive = async (msg, bot, drive_id) => {
         } else {
             await drive.teamdrives.list({fields: '*', pageSize: 100})
                 .then(async (response) => {
-                    const {data: { teamDrives: team_drives}} = response
+                    const {data: {teamDrives: team_drives}} = response
                     if (!team_drives.length) {
                         await bot.sendMessage(chat_id, 'There\'s no team drive associated with your account.' +
                             '\n All uploads will be on you main drive.\nNote: <code>Personal accounts are limited to 15GB</code>',
@@ -222,11 +227,11 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
         }
 
         /**
-         * @param filePath {string | object} Path where torrent files were stored after download
+         * @param file_path {string | object} Path where torrent files were stored after download
          * @param filename {string} Name of the torrent as of magnet link supplied
          */
-        async function uploadFile(filePath, filename) {
-            const {id, fsPath} = filePath;
+        async function uploadFile(file_path, filename) {
+            const {id, fsPath} = file_path;
             let fsMedia, parent = id
 
             if (!id) parent = drive_id
@@ -237,15 +242,15 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                         body: await fs.createReadStream(filePath)
                     }
                 }
-            } else if (fs.statSync(filePath).isFile()) {
+            } else if (fs.statSync(file_path).isFile()) {
                 fsMedia = {
-                    body: await fs.createReadStream(filePath)
+                    body: await fs.createReadStream(file_path)
                 }
             }
 
             if (!fsMedia) return
-
-            await drive.files.create({
+            const {message_id, name} = torrent;
+            drive.files.create({
                 supportsAllDrives: true, //allows to upload to TeamDrive
                 requestBody: {
                     name: filename, //name the file will go by at google drive (extension determines the file type if mmetype if ignored)
@@ -254,17 +259,16 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
             }, {
                 retryConfig: {
                     retry: 10, retryDelay: 2000, onRetryAttempt: (err) => {
-                        const {msgEdit, name} = torrent;
                         bot.editMessageText(`Upload failed for ${name} retrying...`, {
-                            chat_id: chat_id, message_id: msgEdit.message_id
+                            chat_id: chat_id, message_id: message_id
                         }).catch(err => console.log(err.message))
                         console.log(err)
                     }
                 }, retry: true
             }, async (err) => {
                 if (err) return console.log(err)
-                const {message_id, name} = torrent;
-                await fs.rm(torrent_path, {recursive: true, force: true}, async () => {
+
+                await fs.rm(file_path, {recursive: true, force: true}, async () => {
                     await bot.editMessageText(`Upload done for ${name}`, {
                         chat_id: chat_id, message_id: message_id
                     }).catch(err => console.log(err.message))
