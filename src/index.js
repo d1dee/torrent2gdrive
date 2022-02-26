@@ -274,6 +274,9 @@ bot.on('chosen_inline_result', async (chosen_Inline) => {
                 .catch((err) => console.log(err))
         } else {
             const {magnet} = availableTorrents[result_id];
+
+            console.log(availableTorrents[result_id])
+
             availableTorrents[result_id] ?
                 download(magnet, bot, chat_id)
                 : null

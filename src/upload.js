@@ -257,7 +257,7 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                         const {msgEdit, name} = torrent;
                         bot.editMessageText(`Upload failed for ${name} retrying...`, {
                             chat_id: chat_id, message_id: msgEdit.message_id
-                        }).catch(err => console.log(err))
+                        }).catch(err => console.log(err.message))
                         console.log(err)
                     }
                 }, retry: true
@@ -267,7 +267,7 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                 await fs.rm(torrent_path, {recursive: true, force: true}, async () => {
                     await bot.editMessageText(`Upload done for ${name}`, {
                         chat_id: chat_id, message_id: message_id
-                    }).catch(err => console.log(err))
+                    }).catch(err => console.log(err.message))
                 })
                 if (_id) {
                     await db.findOne({_id: _id})

@@ -41,7 +41,7 @@ exports.download = async (magnet, bot, chat_id, _id) => {
                         await bot.editMessageText(`Downloading: \n ${engine.torrent.name} \n \tDownloaded ${currentPercentage}% \tSpeed: ${(engine.swarm.downloadSpeed() * 0.000001).toFixed(2)} MB/s`, {
                             chat_id: chat_id,
                             message_id: message_id
-                        }).catch((err) => console.log(err.code))
+                        }).catch((err) => console.log(err.message))
                         last_percentage = currentPercentage
                     }
                 }

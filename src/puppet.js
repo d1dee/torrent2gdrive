@@ -139,6 +139,8 @@ exports.movieIndex = async (query) => {
 exports.torrentDownload = async (query, site) => {
     return new Promise((resolve, reject) => {
         console.log(query)
+        //heroku blocked sites
+        //1337x,
         let returnData = []
         if (!site) site = '1337x'
         axios.get(`https://torrent-api-d1dee.koyeb.app/api/${site}/${query}`)
