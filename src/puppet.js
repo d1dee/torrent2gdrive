@@ -99,8 +99,8 @@ exports.movieIndex = async (query) => {
                         message: `No results found for ${query}`
                     })
                     results.forEach((element) => {
+                        if (media_type === 'person') return
                         if (element.popularity > 20) {
-
                             return_data.push({
                                 adult: element.adult,
                                 id: element.id,
@@ -121,7 +121,9 @@ exports.movieIndex = async (query) => {
                     return_data = return_data.sort((a, b) => {
                         return b.popularity - a.popularity
                     })
-                    resolve(return_data)
+                    (return_data.length < 1) ? reject({
+                        message: `No results found for ${query}`
+                    }) : resolve(return_data)
                 })
                 .catch(err => {
                     console.log(err)
@@ -139,14 +141,11 @@ exports.movieIndex = async (query) => {
 exports.torrentDownload = async (query, site) => {
     return new Promise((resolve, reject) => {
         console.log(query)
-        //heroku blocked sites
-        //1337x,
         let returnData = []
         if (!site) site = 'all'
         axios.get(`https://torrent-api-d1dee.koyeb.app/api/${site}/${query}`)
             .then(({data}) => {
-               // console.log(data)
-                if (!data) reject({search_error: 'No data received'})       
+                if (!data) reject({search_error: 'No data received'})
                 if (Array.isArray(data[0])) {
                     data.forEach((e) => {
                         if (!e) return
@@ -165,8 +164,7 @@ exports.torrentDownload = async (query, site) => {
                             })
                         })
                     })
-                }
-                else {
+                } else {
                     data.forEach(({DateUploaded, Leechers, Magnet, Name, Seeders, Size, UploadedBy, Category}) => {
                         if (!(/^magnet:\?/i.test(Magnet)) || !Seeders || !Name || !Size ||
                             parseInt(Seeders) < 20 || parseInt(Seeders) > 10000 || parseInt(Seeders) < parseInt(Leechers)) return
@@ -182,7 +180,7 @@ exports.torrentDownload = async (query, site) => {
                         })
                     })
                 }
-                console.log('Got ',returnData.length, ' for ',query)
+                console.log('Got ', returnData.length, ' for ', query)
                 resolve((returnData.sort((a, b) => {
                     return b.seeds - a.seeds;
                 })).slice(0, 50))

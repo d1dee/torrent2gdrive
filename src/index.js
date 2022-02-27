@@ -1,6 +1,6 @@
 require('dotenv').config({path: '.env'})
 const dbCon = require('./dbConnect')
-const tgBot = require('node-telegram-bot-api');
+const node_telegram_bot = require('node-telegram-bot-api');
 const {movieIndex, torrentDownload} = require("./puppet");
 const {scheduler} = require("./schedule");
 //const {cron, tmdb_config} = require("./cron-job");
@@ -12,7 +12,7 @@ const userDb = require("./schemas/userSchema");
 dbCon.dbConnect().then(() => console.log('db connected')).catch(err => console.log(err))
 
 const {TELEGRAM_API} = process.env;
-const bot = new tgBot(TELEGRAM_API, {polling: true})
+const bot = new node_telegram_bot(TELEGRAM_API, {polling: true})
 
 var availableTorrents = []
 

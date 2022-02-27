@@ -46,9 +46,7 @@ exports.driveInt = async (message, bot, reply_message_id) => {
                        console.log(err.message);
                        err.code === 11000 ? await userDb.updateOne({chat_id: chat_id},{reply_message_id:message_id}) : console.log('err')
                    }
-               })/*.catch(async (err) =>{
-
-               })*/
+               })
             }
             catch (err) {
                 console.log(err)
@@ -100,9 +98,7 @@ exports.listTeamDrive = async (msg, bot, drive_id) => {
                 })
             return
         }
-        if (user_db.drive_id && !drive_id) {
-            bot.sendMessage(chat_id, 'Existing Drive Id will be overwritten.')
-        }
+        if (user_db.drive_id && !drive_id) bot.sendMessage(chat_id, 'Existing Drive Id will be overwritten.')
         const drive = google.drive({version: 'v3', auth: oAuth2Client})
         if (drive_id) {
             const {drive_id: id} = JSON.parse(drive_id)
@@ -212,7 +208,6 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
         } else if (fs.statSync(torrent_path).isFile()) {
             await uploadFile(torrent_path, torrent.name)
         }
-
         //create folder for the torrent
         async function makeDir(dirName, parent) {
             if (!parent) parent = drive_id
@@ -225,7 +220,6 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                 }
             }).catch(err => console.log(err))
         }
-
         /**
          * @param file_path {string | object} Path where torrent files were stored after download
          * @param filename {string} Name of the torrent as of magnet link supplied

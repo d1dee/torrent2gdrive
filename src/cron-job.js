@@ -11,15 +11,14 @@ const {TMDB_API} = process.env
 /**
  * @param bot {Object} Initialized telegram bot
  */
+
 exports.cron = async (bot) => {
     exports.tmdb_config()
-    let tv_show
-    cron.schedule('0 */2 * * *', async () => {
         console.log('Cron job running...')
         try {
-            let toDownload = await db.find({release_date: {$lte: Date.now()}})
-            for (let i = 0; i < toDownload.length; i++) {
-                const {title, imdbID, type, _id, userID} = toDownload[i];
+            let to_download = await db.find({release_date: {$lte: Date.now()}})
+            for (let i = 0; i < to_download.length; i++) {
+                const {title, imdbID, type, _id, userID} = to_download[i];
                 if (type === 'movie') {
                     i++
                 } else if (type === 'series') {
@@ -84,7 +83,6 @@ exports.cron = async (bot) => {
         } catch (err) {
             console.log(err.message)
         }
-    }, {});
 }
 
 /**
