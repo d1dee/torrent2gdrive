@@ -121,9 +121,9 @@ exports.movieIndex = async (query) => {
                     return_data = return_data.sort((a, b) => {
                         return b.popularity - a.popularity
                     })
-                    (return_data.length < 1) ? reject({
-                        message: `No results found for ${query}`
-                    }) : resolve(return_data)
+                   return_data.length === 0 ? reject({
+                       message: `No results found for ${query}`
+                   }) : resolve (return_data)
                 })
                 .catch(err => {
                     console.log(err)
