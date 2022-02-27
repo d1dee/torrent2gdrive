@@ -100,7 +100,7 @@ exports.movieIndex = async (query) => {
                     })
                     results.forEach((element) => {
                         if (element.media_type === 'person') return
-                        if (element.popularity > 10) {
+                        if (element.popularity > 5) {
                             return_data.push({
                                 adult: element.adult,
                                 id: element.id,

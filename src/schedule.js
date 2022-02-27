@@ -1,6 +1,4 @@
 const db = require('./schemas/moviesSchema')
-const {seasonEpisode} = require("./cron-job");
-
 
 exports.scheduler = async (results, bot, chat_id) => {
     console.log(chat_id)
@@ -71,4 +69,21 @@ exports.scheduler = async (results, bot, chat_id) => {
         console.log(err)
     }
 
+}
+
+/**
+ *
+ * @param season {Number} Season number
+ * @param episode {Number} [undefined] Episode number
+ * @returns {string} Returns a combination of Season and Episode number in the format of S02E05
+ */
+seasonEpisode = (season, episode) => {
+    season = season ? season : season = 1
+    episode = episode ? episode : episode = 1
+    return (season < 10)
+        ? ((episode < 10)
+            ? 'S0' + season + 'E0' + episode
+            : 'S0' + season + 'E' + episode)
+        : (episode < 10) ? 'S' + season + 'E0' + episode
+            : 'S' + season + 'E' + episode
 }
