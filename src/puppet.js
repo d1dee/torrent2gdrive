@@ -99,7 +99,7 @@ exports.movieIndex = async (query) => {
                         message: `No results found for ${query}`
                     })
                     results.forEach((element) => {
-                        if (media_type === 'person') return
+                        if (element.media_type === 'person') return
                         if (element.popularity > 10) {
                             return_data.push({
                                 adult: element.adult,
