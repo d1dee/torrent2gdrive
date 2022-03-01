@@ -8,6 +8,7 @@ const db = require('./schemas/userSchema')
 const {setAuth, listTeamDrive, driveInt} = require("./upload");
 const {download} = require('./download')
 const userDb = require("./schemas/userSchema");
+const {cron_job} = require("./cron-job");
 
 dbCon.dbConnect().then(() => console.log('db connected')).catch(err => console.log(err))
 
@@ -44,6 +45,8 @@ bot.on('message', async (message) => {
             bot.sendMessage(chat_id, `Welcome to Torrent2GoogleDrive. This bot can help you easily upload any torrent to Google Drive. Type <code>/help </code> for Help`, {
                 parse_mode: 'HTML'
             })
+        } else if (message_text === '/cron') {
+            cron_job(bot)
         } else if (message_text === '/list_team_drive') {
             await listTeamDrive(message, bot)
         } else if (message_text === '/inline_search') {
@@ -78,7 +81,7 @@ bot.on('message', async (message) => {
                 });
             results.forEach(async (element) => {
                 let {
-                    id,
+                    tmdb_id,
                     genre,
                     overview,
                     poster_path,
@@ -91,17 +94,17 @@ bot.on('message', async (message) => {
 Release date: ${release_date}  Rating: ${vote_average}
 
 Plot: ${overview}`
-                if (Date.parse(release_date) > Date.now()) {
+                if (Date.parse(release_date) < Date.now()) {
                     bot.sendMessage(chat_id, messages, {
                         parse_mode: 'HTML', cache_time: 0,
                         reply_markup: {
                             inline_keyboard: [[{
                                 text: "⌚ Schedule ",
-                                callback_data: JSON.stringify({schedule: true, id, media_type})
+                                callback_data: JSON.stringify({schedule: true, tmdb_id, media_type})
                             },
                                 {
                                     text: "✈ More Info",
-                                    callback_data: JSON.stringify({more_info: true, id, media_type})
+                                    callback_data: JSON.stringify({more_info: true, tmdb_id, media_type})
                                 }]]
                         }
                     }).catch((err) => console.log(err))
@@ -114,7 +117,7 @@ Plot: ${overview}`
                                 switch_inline_query_current_chat: title
                             }, {
                                 text: "✈ More Info",
-                                callback_data: JSON.stringify({more_info: true, id, media_type})
+                                callback_data: JSON.stringify({more_info: true, tmdb_id, media_type})
                             }]]
                         }
                     }).catch((err) => console.log(err))
@@ -129,12 +132,12 @@ Plot: ${overview}`
 bot.on('callback_query', async (callback) => {
 
     const {message: {chat: {id: chat_id}}, data} = callback
-    const {id, schedule, more_info, drive_id, media_type} = JSON.parse(data)
+    const {tmdb_id, schedule, more_info, drive_id, media_type} = JSON.parse(data)
     console.log(data)
     if (drive_id) {
         listTeamDrive(callback, bot, data)
     } else if (schedule) {
-        await scheduler(await movieIndex({id, media_type}), bot, chat_id)
+        await scheduler({tmdb_id, media_type}, bot, chat_id)
     } else if (more_info) {
         try {
             let {
@@ -146,7 +149,7 @@ bot.on('callback_query', async (callback) => {
                 vote_average,
                 in_production,
                 original_title, title
-            } = await movieIndex({id, media_type}).catch(err => {
+            } = await movieIndex({tmdb_id, media_type}).catch(err => {
                 console.log(err)
             })
             let message =
@@ -162,12 +165,12 @@ bot.on('callback_query', async (callback) => {
                     reply_markup: in_production && Date.parse(release_date) < Date.now() ? {
                         inline_keyboard: [[{
                             text: "⌚ Schedule",
-                            callback_data: JSON.stringify({schedule: true, id, media_type})
+                            callback_data: JSON.stringify({schedule: true, tmdb_id, media_type})
                         }, {text: "⏬ Download ", "switch_inline_query_current_chat": title || name}]]
                     } : {
                         inline_keyboard: [[{
                             text: "⌚ Schedule",
-                            callback_data: JSON.stringify({schedule: true, id, media_type})
+                            callback_data: JSON.stringify({schedule: true, tmdb_id, media_type})
                         }]]
                     }
 
@@ -187,7 +190,7 @@ bot.on('callback_query', async (callback) => {
     }
 })
 
-bot.on('inline_query', async ({query, id: queryId}) => {
+bot.on('inline_query', async ({query, id: query_id}) => {
     if (/^\//.test(query)) {
         let inline_result = [], result_array = [{
             title: 'Start',
@@ -216,10 +219,10 @@ bot.on('inline_query', async ({query, id: queryId}) => {
                 message_text: command
             })
         })
-        bot.answerInlineQuery(queryId, inline_result).catch(err => console.log(err))
+        bot.answerInlineQuery(query_id, inline_result).catch(err => console.log(err))
     } else if (!query || query.length < 3) {
         query ?
-            bot.answerInlineQuery(queryId, [{
+            bot.answerInlineQuery(query_id, [{
                 type: "article",
                 id: 0,
                 title: "Searching....",
@@ -247,11 +250,11 @@ bot.on('inline_query', async ({query, id: queryId}) => {
                         }
                     )
                 })
-                bot.answerInlineQuery(queryId, response, {cache_time: 1})
+                bot.answerInlineQuery(query_id, response, {cache_time: 1})
             })
             .catch(err => {
                 if (err.search_error) {
-                    bot.answerInlineQuery(queryId, [{
+                    bot.answerInlineQuery(query_id, [{
                         type: "article",
                         id: 0,
                         title: `No results found for ${query}`,

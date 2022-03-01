@@ -273,10 +273,11 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                             const {episode} = doc;
                             db.updateOne({_id: _id}, {
                                 download: {
-                                    episode: episode.lastEpisode,
+                                    episode: episode.last_episode,
+                                    file_name: name,
+                                    parent_folder_id: parent,
                                     downloaded: true,
-                                    downloadDate: Date.now(),
-                                    fileName: name,
+                                    download_date: Date.now(),
                                 }
                             }).catch((err) => {
                                 console.log(err)

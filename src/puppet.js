@@ -11,26 +11,27 @@ const {images: {secure_base_url}} = tmdb_config[0], {genres} = tmdb_config[1]
  * @returns {Promise <resolve, reject>} Rejects with error
  */
 exports.movieIndex = async (query) => {
-    const {id, media_type} = query
-    if (id && media_type) {
+    const {tmdb_id, media_type} = query
+    console.log(query)
+    if (tmdb_id && media_type) {
         return new Promise(async (resolve, reject) => {
             let data
             if (media_type === 'movie') {
-                await axios.get(`https://api.themoviedb.org/3/movie/${id}?api_key=${TMDB_API}&language=en-US`)
+                await axios.get(`https://api.themoviedb.org/3/movie/${tmdb_id}?api_key=${TMDB_API}&language=en-US`)
                     .then((response) => {
                         data = response.data
                     }).catch(err => {
                         console.log(err);
-                        reject(err)
+                        reject({axios_error: true})
                     })
             } else if (media_type === 'tv') {
-                await axios.get(`https://api.themoviedb.org/3/tv/${id}?api_key=${TMDB_API}&language=en-US`)
+                await axios.get(`https://api.themoviedb.org/3/tv/${tmdb_id}?api_key=${TMDB_API}&language=en-US`)
                     .then((response) => {
                         data = response.data
                     })
                     .catch(err => {
                         console.log(err);
-                        reject(err)
+                        reject({axios_error:true})
                     })
             }
             const {
@@ -59,16 +60,13 @@ exports.movieIndex = async (query) => {
                 imdb_id,
                 vote_average
             } = data;
-            let genre = []
-            genres.forEach((element) => {
-                genre.push(element.name)
-            })
-            !data ? reject({message: 'No response received'}) : resolve({
+            let genre = genres.map((element) => element.name)
+            !data ? reject({message: 'No response received',code:1}) : resolve({
                 media_type,
                 adult,
                 belongs_to_collection,
-                genres: genre.toString(),
-                id,
+                genres: genre,
+                tmdb_id,
                 imdb_id,
                 original_language,
                 overview,
@@ -103,7 +101,7 @@ exports.movieIndex = async (query) => {
                         if (element.popularity > 5) {
                             return_data.push({
                                 adult: element.adult,
-                                id: element.id,
+                                tmdb_id: element.id,
                                 backdrop_path: element.backdrop_path,
                                 genre: genre_to_string(element.genre_ids),
                                 original_language: element.original_language,
