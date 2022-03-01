@@ -15,7 +15,7 @@ const {TMDB_API} = process.env
  */
 
 exports.cron_job = (bot) => {
-    nodeCron.schedule('0 0/6 * * *', async () => {
+    nodeCron.schedule('* * * * *', async () => {
         exports.tmdb_config()
         console.log('Cron job running...')
         try {
@@ -40,7 +40,10 @@ exports.cron_job = (bot) => {
         } catch (err) {
             console.log(err.message)
         }
-    }, {})
+    }, {
+        scheduled: false,
+        timezone: 'Africa/Nairobi'
+    })
 }
 
 /**
