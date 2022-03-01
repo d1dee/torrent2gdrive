@@ -8,6 +8,7 @@ const {setAuth, listTeamDrive, driveInt} = require("./upload");
 const {download} = require('./download')
 const userDb = require("./schemas/userSchema");
 const {cron_job} = require("./cron-job");
+const nodeCron = require("node-cron");
 
 
 dbCon.dbConnect().then(() => console.log('db connected')).catch(err => console.log(err))
@@ -16,8 +17,6 @@ const {TELEGRAM_API} = process.env;
 const bot = new node_telegram_bot(TELEGRAM_API, {polling: true})
 
 var availableTorrents = []
-
-cron_job(bot)
 
 bot.on('message', async (message) => {
     try {
@@ -286,4 +285,10 @@ bot.on('chosen_inline_result', async (chosen_Inline) => {
     } catch (err) {
         console.log(err)
     }
+})
+
+nodeCron.schedule('0 */6 * * *',  () => {
+    cron_job(bot).catch(err => console.log(err))
+}, {
+    timezone: 'Africa/Nairobi'
 })
