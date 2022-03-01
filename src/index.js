@@ -95,7 +95,7 @@ bot.on('message', async (message) => {
 Release date: ${release_date}  Rating: ${vote_average}
 
 Plot: ${overview}`
-                if (Date.parse(release_date) < Date.now()) {
+                if (Date.parse(release_date) > Date.now()) {
                     bot.sendMessage(chat_id, messages, {
                         parse_mode: 'HTML', cache_time: 0,
                         reply_markup: {
