@@ -63,7 +63,7 @@ async function cron_download(bot) {
                                 ? null
                                 : (/(WEB(\W|\s|)Rip )|(WEB(\s|\W)DL)|(Blu(\W|\s|)Ray)/gi).test(element.name)
                                     ? element.name.match((new RegExp(title.replace(/(\W|\s)/ig, '(\\W|\\s|).?'), 'ig')))
-                                        ? (Number.parseFloat(element.size) < 3 && element.seeds > 100)
+                                        ? (Number.parseFloat(element.size) < 3 && element.seeds > 50)
                                         : console.log(`No result found matching ${title}`)
                                     : null
                         });
@@ -76,9 +76,9 @@ async function cron_download(bot) {
                         .then((response) => {
                             const element = response.find(element => {
                                 return element
-                                    ? (/(web(\W|\s|)rip)/gi).test(element.name)
+                                    ? (/(web(\W|\s|)rip)|(hd(\W|\s|)tv)/gi).test(element.name)
                                         ? element.name.match((new RegExp(title.replace(/(\W|\s)/ig, '(\\W|\\s|).?'), 'ig')))
-                                            ? (Number.parseFloat(element.size) > 500 || Number.parseFloat(element.size) < 2 && element.seeds > 100)
+                                            ? (Number.parseFloat(element.size) > 300 || Number.parseFloat(element.size) < 2 && element.seeds > 50)
                                             : console.log(`No result found matching ${title}`)
                                         : null
                                     : null
