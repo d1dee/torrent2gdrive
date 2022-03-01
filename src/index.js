@@ -1,6 +1,5 @@
 require('dotenv').config({path: '.env'})
 const dbCon = require('./dbConnect')
-let nodeCron = require('node-cron');
 const node_telegram_bot = require('node-telegram-bot-api');
 const {movieIndex, torrentDownload} = require("./puppet");
 const {scheduler} = require("./schedule");
@@ -15,8 +14,6 @@ dbCon.dbConnect().then(() => console.log('db connected')).catch(err => console.l
 
 const {TELEGRAM_API} = process.env;
 const bot = new node_telegram_bot(TELEGRAM_API, {polling: true})
-
-nodeCron.schedule('0 0/6 * * *', cron_job(bot))
 
 var availableTorrents = []
 

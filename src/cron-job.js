@@ -5,6 +5,8 @@ const {download} = require("./download")
 const fs = require("fs");
 const {path} = require("file");
 const {scheduler} = require("./schedule");
+const nodeCron = require('node-cron');
+
 
 const {TMDB_API} = process.env
 
@@ -12,31 +14,33 @@ const {TMDB_API} = process.env
  * @param bot {Object} Initialized telegram bot
  */
 
-exports.cron_job = async (bot) => {
-    exports.tmdb_config()
-    console.log('Cron job running...')
-    try {
-        let to_download = await db.find({release_date: {$lte: Date.now()}})
-        let scheduler_promise = []
+exports.cron_job = (bot) => {
+    nodeCron.schedule('0 0/6 * * *', async () => {
+        exports.tmdb_config()
+        console.log('Cron job running...')
+        try {
+            let to_download = await db.find({release_date: {$lte: Date.now()}})
+            let scheduler_promise = []
 
-        to_download.forEach((element) => {
-            const {tmdb_id, media_type, chat_id, _id} = element
-            if (media_type !== 'movie')
-                scheduler_promise.push(scheduler({tmdb_id, media_type}, bot, chat_id, _id)
-                    .catch((err) => {
-                        console.log(err)
-                    }))
-        })
-        Promise.all(scheduler_promise)
-            .then(_ => {
-                    console.log("DB Promise resolved successfully")
-                    cron_download(bot)
-                }
-            )
-            .catch(err => console.log(err))
-    } catch (err) {
-        console.log(err.message)
-    }
+            to_download.forEach((element) => {
+                const {tmdb_id, media_type, chat_id, _id} = element
+                if (media_type !== 'movie')
+                    scheduler_promise.push(scheduler({tmdb_id, media_type}, bot, chat_id, _id)
+                        .catch((err) => {
+                            console.log(err)
+                        }))
+            })
+            Promise.all(scheduler_promise)
+                .then(_ => {
+                        console.log("DB Promise resolved successfully")
+                        cron_download(bot)
+                    }
+                )
+                .catch(err => console.log(err))
+        } catch (err) {
+            console.log(err.message)
+        }
+    }, {})
 }
 
 /**
