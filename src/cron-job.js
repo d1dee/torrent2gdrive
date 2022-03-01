@@ -1,4 +1,3 @@
-let cron = require('node-cron');
 const db = require("./schemas/moviesSchema");
 const {torrentDownload} = require("./puppet");
 const axios = require("axios");
