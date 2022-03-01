@@ -58,7 +58,7 @@ exports.download = async (magnet, bot, chat_id, _id) => {
                 engine.destroy(async () => {
                     let torrent = {
                         name: engine.torrent.name,
-                        path: engine.torrent.path,
+                        path: path.join(__dirname, 'downloads',engine.torrent.name),
                         message_id: message_id
                     }
                      upload(torrent, bot, chat_id, _id)

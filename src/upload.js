@@ -174,37 +174,55 @@ exports.listTeamDrive = async (msg, bot, drive_id) => {
  * @param {string} _id mongo _id of the current downloading instance. Only supplied by cron Job
  */
 exports.upload = async (torrent, bot, chat_id, _id) => {
+    /**
+     * torrent {
+     *     name:
+     *     path:
+     *     message_id:
+     * }
+     */
 
-    try {
-        let user = await userDb.findOne({chat_id: chat_id, token: {$ne: null}}), fileArray = [],
-            torrent_path = path.join(__dirname, 'downloads', torrent.name)
-        const {token, drive_id} = user;
+    try{
+        let user = await userDb.findOne({chat_id: chat_id, token: {$ne: null}}), fileArray = []
+
+        const {token, drive_id} = user, {path: torrent_path,name,message_id} = torrent;
+
         oAuth2Client.setCredentials(JSON.parse(token));
         const drive = google.drive({version: 'v3', auth: oAuth2Client})
         if (fs.statSync(torrent_path).isDirectory()) {
             /**
              * Maps the entire torrent folder to an array fileArray
              */
+            //!need to work on this
             file.walkSync(path.normalize(torrent_path), async (fsPath, dirs, files) => {
                 fileArray.push({
-                    fsPath: fsPath, dirName: dirs, files: files, id: null, parentId: null
+                    fsPath: fsPath,
+                    dirName: dirs,
+                    files: files,
+                    id: null,
+                    parentId: null
                 })
             })
-            for (let e = 0; e < fileArray.length; e++) {
-                const {files, fsPath} = fileArray[e];
+            fileArray.forEach(async (element)=>{
+                const {fsPath,dirName, files,id,parentId} = element
                 let fileArrayFind = fileArray.find(i => i.fsPath === (path.parse(fsPath)).dir)
-                if (!fileArrayFind) fileArray[e].id = ((await makeDir((path.parse(fsPath).name))).data).id
+
+                if (!fileArrayFind) element.id = ((await makeDir((path.parse(fsPath).name))).data).id
                 else if (fileArrayFind) {
-                    fileArray[e].parentId = fileArrayFind.id
-                    fileArray[e].id = ((await makeDir((path.parse(fsPath).name), fileArrayFind.id)).data).id
+                    element.parentId = fileArrayFind.id
+                    element.id = ((await makeDir((path.parse(fsPath).name), fileArrayFind.id)).data).id
                 }
                 if (files.length > 0) {
                     //use the new id assigned as the parent
-                    for await (let filename of files) {
-                        await uploadFile(fileArray[e], filename)
+                    for (let filename of files) {
+                         uploadFile(element, filename)
                     }
                 }
-            }
+            })
+
+                //const {files, fsPath} = fileArray[e];
+
+
         } else if (fs.statSync(torrent_path).isFile()) {
             await uploadFile(torrent_path, torrent.name)
         }
@@ -262,7 +280,7 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
             }, async (err) => {
                 if (err) return console.log(err)
 
-                await fs.rm(file_path, {recursive: true, force: true}, async () => {
+                await fs.rm(file_path.fsPath || file_path, {recursive: true, force: true}, async () => {
                     await bot.editMessageText(`Upload done for ${name}`, {
                         chat_id: chat_id, message_id: message_id
                     }).catch(err => console.log(err.message))
