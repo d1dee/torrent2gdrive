@@ -17,6 +17,8 @@ const bot = new node_telegram_bot(TELEGRAM_API, {polling: true})
 
 var availableTorrents = []
 
+cron_job(bot)
+
 bot.on('message', async (message) => {
     try {
         const {chat: {id: chat_id}, text, via_bot, reply_to_message} = message;
