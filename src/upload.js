@@ -203,14 +203,14 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                     parentId: null
                 })
             })
-            fileArray.forEach(async (element)=>{
+            fileArray.forEach(async (element,index)=>{
                 const {fsPath,dirName, files,id,parentId} = element
                 let fileArrayFind = fileArray.find(i => i.fsPath === (path.parse(fsPath)).dir)
 
                 if (!fileArrayFind) element.id = ((await makeDir((path.parse(fsPath).name))).data).id
                 else if (fileArrayFind) {
-                    element.parentId = fileArrayFind.id
-                    element.id = ((await makeDir((path.parse(fsPath).name), fileArrayFind.id)).data).id
+                    fileArray[index].parentId = fileArrayFind.id
+                    fileArray[index].id = ((await makeDir((path.parse(fsPath).name), fileArrayFind.id)).data).id
                 }
                 if (files.length > 0) {
                     //use the new id assigned as the parent
@@ -219,10 +219,6 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                     }
                 }
             })
-
-                //const {files, fsPath} = fileArray[e];
-
-
         } else if (fs.statSync(torrent_path).isFile()) {
             await uploadFile(torrent_path, torrent.name)
         }
