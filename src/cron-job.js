@@ -75,9 +75,11 @@ async function cron_download(bot) {
                         .then((response) => {
                             const element = response.find(element => {
                                 return element
-                                    ? element.name.match((new RegExp(title.replace(/(\W|\s)/ig, '(\\W|\\s|).?'), 'ig')))
-                                        ? (Number.parseFloat(element.size) > 500 || Number.parseFloat(element.size) < 2 && element.seeds > 50)
-                                        : console.log(`No result found matching ${title}`)
+                                    ? (/(web(\W|\s|)rip)|(hd(\W|\s|)tv)/gi).test(element.name)
+                                        ? element.name.match((new RegExp(title.replace(/(\W|\s)/ig, '(\\W|\\s|).?'), 'ig')))
+                                            ? (Number.parseFloat(element.size) > 500 || Number.parseFloat(element.size) < 2 && element.seeds > 50)
+                                            : console.log(`No result found matching ${title}`)
+                                        : null
                                     : null
                             })
                             element ? download(element.magnet, bot, chat_id, _id) : console.log(`No result found matching ${title}`)
