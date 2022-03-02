@@ -10,6 +10,7 @@ const {images: {secure_base_url}} = tmdb_config[0], {genres} = tmdb_config[1]
  * When an object is supplied it should contain {TMDB id, media_type}
  * @returns {Promise <resolve, reject>} Rejects with error
  */
+
 exports.movieIndex = async (query) => {
     const {tmdb_id, media_type} = query
     console.log(query)
