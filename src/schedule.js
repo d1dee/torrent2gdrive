@@ -23,7 +23,6 @@ exports.scheduler = (results, bot, chat_id, _id) => {
         let {
             air_date: last_episode_air_date,
             episode_number: last_episode_number,
-            name: last_episode_name,
             season_number: last_episode_season_number
         } = last_episode_to_air ? last_episode_to_air : {}
 

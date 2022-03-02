@@ -168,7 +168,7 @@ exports.listTeamDrive = async (msg, bot, drive_id) => {
     }
 }
 /**
- * @param torrent {object} Has torrent path and torrent name which are needed in order to map the same folder structure in Google Drive
+ * @param torrent {object} Has torrent path and torrent name which are needed to map the same folder structure in Google Drive
  * @param chat_id {object || string } Has either chat_id about the torrent ie chat_id, season when used by cron job || the userID when used by telegram message
  * @param bot {object} telegram bot initialized at index
  * @param {string} _id mongo _id of the current downloading instance. Only supplied by cron Job
@@ -185,7 +185,7 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
     try{
         let user = await userDb.findOne({chat_id: chat_id, token: {$ne: null}}), fileArray = []
 
-        const {token, drive_id} = user, {path: torrent_path,name,message_id} = torrent;
+        const {token, drive_id} = user, {path: torrent_path} = torrent;
 
         oAuth2Client.setCredentials(JSON.parse(token));
         const drive = google.drive({version: 'v3', auth: oAuth2Client})
@@ -204,7 +204,7 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                 })
             })
             fileArray.forEach(async (element,index)=>{
-                const {fsPath,dirName, files,id,parentId} = element
+                const {fsPath, files} = element
                 let fileArrayFind = fileArray.find(i => i.fsPath === (path.parse(fsPath)).dir)
 
                 if (!fileArrayFind) element.id = ((await makeDir((path.parse(fsPath).name))).data).id
@@ -226,9 +226,9 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
         async function makeDir(dirName, parent) {
             if (!parent) parent = drive_id
             return await drive.files.create({
-                supportsAllDrives: true, //allows to upload to TeamDrive
+                supportsAllDrives: true, //allows uploading to TeamDrive
                 requestBody: {
-                    name: dirName, //name the file will go by at google drive (extension determines the file type if mmetype if ignored)
+                    name: dirName, //name the file will go by at Google Drive (extension determines the file type if mimetype is ignored)
                     parents: [`${parent}`], //parent folder where to upload or work on
                     mimeType: 'application/vnd.google-apps.folder',
                 }
@@ -259,9 +259,9 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
             if (!fsMedia) return
             const {message_id, name} = torrent;
             drive.files.create({
-                supportsAllDrives: true, //allows to upload to TeamDrive
+                supportsAllDrives: true, //allows uploading to TeamDrive
                 requestBody: {
-                    name: filename, //name the file will go by at google drive (extension determines the file type if mmetype if ignored)
+                    name: filename, //name the file will go by at Google Drive (extension determines the file type if mimetype is ignored)
                     parents: [`${parent}`], //parent folder where to upload or work on
                 }, media: fsMedia
             }, {

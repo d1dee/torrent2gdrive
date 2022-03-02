@@ -5,8 +5,6 @@ const {download} = require("./download")
 const fs = require("fs");
 const {path} = require("file");
 const {scheduler} = require("./schedule");
-const nodeCron = require('node-cron');
-
 
 const {TMDB_API} = process.env
 
@@ -61,7 +59,7 @@ async function cron_download(bot) {
 
         to_download.forEach(async (element) => {
             const {
-                episode: {next_episode_date, next_episode, episode_name, last_episode},
+                episode: {last_episode},
                 _id, chat_id, title, media_type, download: {downloaded, episode}
             } = element;
 

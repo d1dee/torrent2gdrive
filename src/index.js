@@ -1,22 +1,20 @@
 require('dotenv').config({path: '.env'})
-const dbCon = require('./dbConnect')
-const node_telegram_bot = require('node-telegram-bot-api');
-const {movieIndex, torrentDownload} = require("./puppet");
-const {scheduler} = require("./schedule");
-const db = require('./schemas/userSchema')
-const {setAuth, listTeamDrive, driveInt} = require("./upload");
-const {download} = require('./download')
-const userDb = require("./schemas/userSchema");
-const {cron_job} = require("./cron-job");
-const nodeCron = require("node-cron");
-
+const dbCon = require('./dbConnect'), node_telegram_bot = require('node-telegram-bot-api'), {
+        movieIndex,
+        torrentDownload
+    } = require("./puppet"), {scheduler} = require("./schedule"), db = require('./schemas/userSchema'), {
+        setAuth,
+        listTeamDrive,
+        driveInt
+    } = require("./upload"), {download} = require('./download'),
+    userDb = require("./schemas/userSchema"), {cron_job} = require("./cron-job"), nodeCron = require("node-cron");
 
 dbCon.dbConnect().then(() => console.log('db connected')).catch(err => console.log(err))
 
 const {TELEGRAM_API} = process.env;
 const bot = new node_telegram_bot(TELEGRAM_API, {polling: true})
 
-var availableTorrents = []
+let availableTorrents = []
 
 bot.on('message', async (message) => {
     try {
@@ -43,7 +41,7 @@ bot.on('message', async (message) => {
             return undefined
         else if (message_text === '/start') {
             await driveInt(message, bot)
-            bot.sendMessage(chat_id, `Welcome to Torrent2GoogleDrive. This bot can help you easily upload any torrent to Google Drive. Type <code>/help </code> for Help`, {
+            bot.sendMessage(chat_id, `Welcome to Torrent2GDrive. This bot can help you easily upload any torrent to Google Drive. Type <code>/help </code> for Help`, {
                 parse_mode: 'HTML'
             })
         } else if (message_text === '/cron') {
