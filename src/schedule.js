@@ -2,6 +2,7 @@ const db = require('./schemas/moviesSchema')
 const {movieIndex} = require("./puppet");
 
 exports.scheduler = (results, bot, chat_id, _id) => {
+    console.log(_id)
     return new Promise(async (resolve, reject) => {
         const {
             genres,
@@ -41,7 +42,7 @@ exports.scheduler = (results, bot, chat_id, _id) => {
                             : next_episode_air_date ? `Next download for S${next_episode_season_number} E${next_episode_number} will be on ${next_episode_air_date}`
                                 : 'Awaiting announcement for the next release date.'}`)
                         .catch((err) => console.log(err.message))
-                    : db.updateOne({_id: _id}, {
+                    : await db.updateMany({tmdb_id: tmdb_id}, {
                         episode: (media_type === 'tv')
                             ? {
                                 last_episode_date: last_episode_air_date,
@@ -49,11 +50,10 @@ exports.scheduler = (results, bot, chat_id, _id) => {
                                 episode_name: next_episode_name,
                                 last_episode: seasonEpisode(last_episode_season_number, last_episode_number),
                                 next_episode: seasonEpisode(next_episode_season_number, next_episode_number)
-                            }
-                            : undefined,
+                            } : null,
                         complete: (status === 'Ended')
                     })
-                : db.create({
+                : await db.create({
                     chat_id: chat_id,
                     tmdb_id: tmdb_id,
                     title: title || name || original_title || original_name,

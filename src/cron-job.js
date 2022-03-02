@@ -22,12 +22,22 @@ exports.cron_job = async (bot) => {
         let scheduler_promise = []
 
         to_download.forEach((element) => {
-            const {tmdb_id, media_type, chat_id, _id} = element
-            if (media_type !== 'movie')
+            const {tmdb_id, media_type, chat_id, _id,episode: {next_episode_date}, complete} = element
+            if (media_type !== 'movie') {
                 scheduler_promise.push(scheduler({tmdb_id, media_type}, bot, chat_id, _id)
                     .catch((err) => {
                         console.log(err)
                     }))
+            } else if (media_type !== 'tv') {
+                (!complete && next_episode_date)
+                    ? (Date.parse(next_episode_date) < Date.now)
+                        ? scheduler_promise.push(scheduler({tmdb_id, media_type}, bot, chat_id, _id)
+                            .catch((err) => {
+                                console.log(err)
+                            }))
+                        : null
+                    :null
+            }
         })
         Promise.all(scheduler_promise)
             .then(_ => {
@@ -37,7 +47,7 @@ exports.cron_job = async (bot) => {
             )
             .catch(err => console.log(err))
     } catch (err) {
-        console.log(err.message)
+        console.log(err)
     }
 }
 
@@ -71,7 +81,7 @@ async function cron_download(bot) {
                     })
 
             } else if (media_type === 'tv') {
-                (!downloaded && episode !== last_episode)
+                (episode !== last_episode)
                     ? await torrentDownload(`${title} ${last_episode}`)
                         .then((response) => {
                             const element = response.find(element => {
