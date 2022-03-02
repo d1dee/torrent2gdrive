@@ -196,67 +196,67 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
             //!need to work on this
             file.walkSync(path.normalize(torrent_path), async (fsPath, dirs, files) => {
                 fileArray.push({
-                    fsPath: fsPath,
-                    dirName: dirs,
-                    files: files,
-                    id: null,
-                    parentId: null
+                    fsPath: fsPath, //complete file path
+                    dirName: dirs, // directories in the above path
+                    files: files, //files in the path
+                    id: null, // drive id
+                    parentId: null //parent drive id
                 })
             })
-            fileArray.forEach(async (element,index)=>{
-                const {fsPath, files} = element
-                let fileArrayFind = fileArray.find(i => i.fsPath === (path.parse(fsPath)).dir)
-
-                if (!fileArrayFind) element.id = ((await makeDir((path.parse(fsPath).name))).data).id
-                else if (fileArrayFind) {
-                    fileArray[index].parentId = fileArrayFind.id
-                    fileArray[index].id = ((await makeDir((path.parse(fsPath).name), fileArrayFind.id)).data).id
+            for (let i = 0; i < fileArray.length; i++) {
+                if (!i) {
+                    fileArray[i].id = (await makeDir(torrent.name)).id
+                    fileArray[i].files.forEach((file)=>{
+                        uploadFile(fileArray[i].fsPath, file,fileArray[i].id)
+                    })
                 }
-                if (files.length > 0) {
-                    //use the new id assigned as the parent
-                    for (let filename of files) {
-                         uploadFile(element, filename)
-                    }
+                else{
+                    let parent = (fileArray.find(element => element.fsPath === (path.parse(fileArray[i].fsPath)).dir))
+                    fileArray[i].id = (await makeDir((path.parse(fileArray[i].fsPath)).base, parent.id)).id
+                    fileArray[i].parentId =  parent.id
+                    fileArray[i].files.forEach((file)=>{
+                        uploadFile(fileArray[i].fsPath, file,fileArray[i].id)
+                    })
                 }
-            })
+            }
         } else if (fs.statSync(torrent_path).isFile()) {
             await uploadFile(torrent_path, torrent.name)
         }
         //create folder for the torrent
         async function makeDir(dirName, parent) {
             if (!parent) parent = drive_id
-            return await drive.files.create({
+            return (await drive.files.create({
                 supportsAllDrives: true, //allows uploading to TeamDrive
                 requestBody: {
                     name: dirName, //name the file will go by at Google Drive (extension determines the file type if mimetype is ignored)
                     parents: [`${parent}`], //parent folder where to upload or work on
                     mimeType: 'application/vnd.google-apps.folder',
                 }
-            }).catch(err => console.log(err))
+            }).catch(err => console.log(err))).data
+
         }
         /**
-         * @param file_path {string | object} Path where torrent files were stored after download
+         * @param fsPath {string } Path where torrent files were stored after download
          * @param filename {string} Name of the torrent as of magnet link supplied
+         * @param id {String=} Parent id string
          */
-        async function uploadFile(file_path, filename) {
-            const {id, fsPath} = file_path;
+        async function uploadFile(fsPath, filename,id) {
             let fsMedia, parent = id
 
             if (!id) parent = drive_id
-            if (fsPath) {
+            if (fs.statSync(fsPath).isFile()) {
+                fsMedia = {
+                    body: await fs.createReadStream(fsPath)
+                }
+            } else {
                 let filePath = path.join(fsPath, filename)
                 if (fs.statSync(filePath).isFile()) {
                     fsMedia = {
                         body: await fs.createReadStream(filePath)
                     }
                 }
-            } else if (fs.statSync(file_path).isFile()) {
-                fsMedia = {
-                    body: await fs.createReadStream(file_path)
-                }
             }
-
-            if (!fsMedia) return
+        if (!fsMedia) return
             const {message_id, name} = torrent;
             drive.files.create({
                 supportsAllDrives: true, //allows uploading to TeamDrive
@@ -276,11 +276,11 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
             }, async (err) => {
                 if (err) return console.log(err)
 
-                await fs.rm(file_path.fsPath || file_path, {recursive: true, force: true}, async () => {
+               /* await fs.rm(fsPath.fsPath || fsPath, {recursive: true, force: true}, async () => {
                     await bot.editMessageText(`Upload done for ${name}`, {
                         chat_id: chat_id, message_id: message_id
                     }).catch(err => console.log(err.message))
-                })
+                })*/
                 if (_id) {
                     await db.findOne({_id: _id})
                         .then((doc) => {
