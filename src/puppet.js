@@ -142,7 +142,7 @@ exports.torrentDownload = async (query, site) => {
         console.log(query)
         let returnData = []
         if (!site) site = 'all'
-        axios.get(`https://torrent-api-d1dee.koyeb.app/api/${site}/${query}`)
+        axios.get(`https://d1dee-api-d1dee.koyeb.app/api/${site}/${query}`)
             .then(({data}) => {
                 if (!data) reject({search_error: 'No data received'})
                 if (Array.isArray(data[0])) {
