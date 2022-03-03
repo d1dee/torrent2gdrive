@@ -21,14 +21,14 @@ exports.cron_job = async (bot) => {
 
         to_download.forEach((element) => {
             const {tmdb_id, media_type, chat_id, _id,episode: {next_episode_date}, complete} = element
-            if (media_type !== 'movie') {
+            if (media_type === 'movie') {
                 scheduler_promise.push(scheduler({tmdb_id, media_type}, bot, chat_id, _id)
                     .catch((err) => {
                         console.log(err)
                     }))
-            } else if (media_type !== 'tv') {
+            } else if (media_type === 'tv') {
                 (!complete && next_episode_date)
-                    ? (Date.parse(next_episode_date) < Date.now)
+                    ? (Date.parse(next_episode_date) <= Date.now)
                         ? scheduler_promise.push(scheduler({tmdb_id, media_type}, bot, chat_id, _id)
                             .catch((err) => {
                                 console.log(err)
