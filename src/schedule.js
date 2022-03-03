@@ -2,7 +2,6 @@ const db = require('./schemas/moviesSchema')
 const {movieIndex} = require("./puppet");
 
 exports.scheduler = (results, bot, chat_id, _id) => {
-    console.log(_id)
     return new Promise(async (resolve, reject) => {
         const {
             genres,

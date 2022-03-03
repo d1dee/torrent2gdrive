@@ -28,13 +28,13 @@ exports.cron_job = async (bot) => {
                     }))
             } else if (media_type === 'tv') {
                 (!complete && next_episode_date)
-                    ? (Date.parse(next_episode_date) <= Date.now)
+                    ? (Date.parse(next_episode_date) <= Date.now())
                         ? scheduler_promise.push(scheduler({tmdb_id, media_type}, bot, chat_id, _id)
                             .catch((err) => {
                                 console.log(err)
                             }))
                         : null
-                    :null
+                    : null
             }
         })
         Promise.all(scheduler_promise)
