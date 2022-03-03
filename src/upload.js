@@ -276,11 +276,11 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
             }, async (err) => {
                 if (err) return console.log(err)
 
-               /* await fs.rm(fsPath.fsPath || fsPath, {recursive: true, force: true}, async () => {
+                await fs.rm( fsPath, {recursive: true, force: true}, async () => {
                     await bot.editMessageText(`Upload done for ${name}`, {
                         chat_id: chat_id, message_id: message_id
                     }).catch(err => console.log(err.message))
-                })*/
+                })
                 if (_id) {
                     await db.findOne({_id: _id})
                         .then((doc) => {
