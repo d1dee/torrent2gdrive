@@ -193,7 +193,7 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
             /**
              * Maps the entire torrent folder to an array fileArray
              */
-            //!need to work on this
+            //
             file.walkSync(path.normalize(torrent_path), async (fsPath, dirs, files) => {
                 fileArray.push({
                     fsPath: fsPath, //complete file path
@@ -216,9 +216,6 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                     for await (const file of fileArray[i].files) {
                         await uploadFile(fileArray[i].fsPath, file, fileArray[i].id)
                     }
-                    /* fileArray[i].files.forEach(async (file) => {
-
-                     })*/
                 }
             }
         } else if (fs.statSync(torrent_path).isFile()) {
@@ -271,6 +268,7 @@ Eta: {eta_formatted}`,
                 hideCursor: true,
                 stopOnComplete: true,
                 clearOnComplete: true,
+                etaBuffer:5
             })
             progress.start(100, 0, {
                 speed: 0

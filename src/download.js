@@ -31,7 +31,9 @@ exports.download = async (magnet, bot, chat_id, _id) => {
             stopOnComplete:true,
             clearOnComplete:true,
             noTTYOutput:true,
-            notTTYSchedule:1000
+            notTTYSchedule:1000,
+            etaBuffer:5
+
         });
 
 
