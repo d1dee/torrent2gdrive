@@ -268,7 +268,6 @@ Eta: {eta_formatted}`,
                 hideCursor: true,
                 stopOnComplete: true,
                 clearOnComplete: true,
-                etaBuffer:5
             })
             progress.start(100, 0, {
                 speed: 0
