@@ -4,6 +4,7 @@ const userDb = require('./schemas/userSchema')
 const db = require("./schemas/moviesSchema");
 const file = require("file");
 const path = require("path");
+const cliProgress = require("cli-progress");
 
 // If modifying these scopes, delete token.json.
 const SCOPES = ['https://www.googleapis.com/auth/drive'];
@@ -33,7 +34,7 @@ exports.driveInt = async (message, bot, reply_message_id) => {
                     }
                 }).catch(err => console.log(err))
                 console.log(chat_id, first_name)
-               await userDb.create({
+                await userDb.create({
                     chat_id: chat_id,
                     is_bot: is_bot,
                     start_date: Date.now(),
@@ -42,13 +43,12 @@ exports.driveInt = async (message, bot, reply_message_id) => {
                     lang: language_code,
                     reply_message_id: message_id
                 }, async (err) => {
-                   if (err){
-                       console.log(err.message);
-                       err.code === 11000 ? await userDb.updateOne({chat_id: chat_id},{reply_message_id:message_id}) : console.log('err')
-                   }
-               })
-            }
-            catch (err) {
+                    if (err) {
+                        console.log(err.message);
+                        err.code === 11000 ? await userDb.updateOne({chat_id: chat_id}, {reply_message_id: message_id}) : console.log('err')
+                    }
+                })
+            } catch (err) {
                 console.log(err)
             }
         } else if (reply_message_id) {
@@ -182,7 +182,7 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
      * }
      */
 
-    try{
+    try {
         let user = await userDb.findOne({chat_id: chat_id, token: {$ne: null}}), fileArray = []
 
         const {token, drive_id} = user, {path: torrent_path} = torrent;
@@ -200,28 +200,31 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                     dirName: dirs, // directories in the above path
                     files: files, //files in the path
                     id: null, // drive id
-                    parentId: null //parent drive id
+                    parentId: null //drive id of the parent folder
                 })
             })
             for (let i = 0; i < fileArray.length; i++) {
                 if (!i) {
                     fileArray[i].id = (await makeDir(torrent.name)).id
-                    fileArray[i].files.forEach((file)=>{
-                        uploadFile(fileArray[i].fsPath, file,fileArray[i].id)
+                    fileArray[i].files.forEach((file) => {
+                        uploadFile(fileArray[i].fsPath, file, fileArray[i].id)
                     })
-                }
-                else{
+                } else {
                     let parent = (fileArray.find(element => element.fsPath === (path.parse(fileArray[i].fsPath)).dir))
                     fileArray[i].id = (await makeDir((path.parse(fileArray[i].fsPath)).base, parent.id)).id
-                    fileArray[i].parentId =  parent.id
-                    fileArray[i].files.forEach((file)=>{
-                        uploadFile(fileArray[i].fsPath, file,fileArray[i].id)
-                    })
+                    fileArray[i].parentId = parent.id
+                    for await (const file of fileArray[i].files) {
+                        await uploadFile(fileArray[i].fsPath, file, fileArray[i].id)
+                    }
+                    /* fileArray[i].files.forEach(async (file) => {
+
+                     })*/
                 }
             }
         } else if (fs.statSync(torrent_path).isFile()) {
             await uploadFile(torrent_path, torrent.name)
         }
+
         //create folder for the torrent
         async function makeDir(dirName, parent) {
             if (!parent) parent = drive_id
@@ -235,13 +238,14 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
             }).catch(err => console.log(err))).data
 
         }
+
         /**
          * @param fsPath {string } Path where torrent files were stored after download
          * @param filename {string} Name of the torrent as of magnet link supplied
          * @param id {String=} Parent id string
          */
-        async function uploadFile(fsPath, filename,id) {
-            let fsMedia, parent = id
+        async function uploadFile(fsPath, filename, id) {
+            let fsMedia, parent = id, filePath = path.join(fsPath, filename);
 
             if (!id) parent = drive_id
             if (fs.statSync(fsPath).isFile()) {
@@ -249,15 +253,29 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                     body: await fs.createReadStream(fsPath)
                 }
             } else {
-                let filePath = path.join(fsPath, filename)
                 if (fs.statSync(filePath).isFile()) {
                     fsMedia = {
                         body: await fs.createReadStream(filePath)
                     }
                 }
             }
-        if (!fsMedia) return
+            if (!fsMedia) return
             const {message_id, name} = torrent;
+            let previous_date = Date.now()
+            const progress = new cliProgress.SingleBar({
+                format: `Uploading {name}
+{bar}| {percentage}% 
+Eta: {eta_formatted}`,
+                barCompleteChar: '\u2588',
+                barIncompleteChar: '\u2591',
+                hideCursor: true,
+                stopOnComplete: true,
+                clearOnComplete: true,
+            })
+            progress.start(100, 0, {
+                speed: 0
+            })
+
             drive.files.create({
                 supportsAllDrives: true, //allows uploading to TeamDrive
                 requestBody: {
@@ -265,9 +283,24 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                     parents: [`${parent}`], //parent folder where to upload or work on
                 }, media: fsMedia
             }, {
+                onUploadProgress: async ({bytesRead}) => {
+                    if (Date.now() >= (previous_date + 1000)) {
+                        previous_date = Date.now()
+
+                        progress.update(Math.round((bytesRead * 100) / fs.statSync(filePath).size), {
+                        pieces_count: bytesRead,
+                        total_pieces: fs.statSync(filePath).size,
+                        name: filename
+                    })
+                    await bot.editMessageText(progress.lastDrawnString, {
+                        chat_id: chat_id,
+                        message_id: message_id
+                    }).catch((err) => console.log(err.message))
+                }
+                },
                 retryConfig: {
                     retry: 10, retryDelay: 2000, onRetryAttempt: (err) => {
-                        bot.editMessageText(`Upload failed for ${name} retrying...`, {
+                        bot.editMessageText(`Upload failed for ${filename} retrying...`, {
                             chat_id: chat_id, message_id: message_id
                         }).catch(err => console.log(err.message))
                         console.log(err)
@@ -276,7 +309,7 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
             }, async (err) => {
                 if (err) return console.log(err)
 
-                await fs.rm( fsPath, {recursive: true, force: true}, async () => {
+                await fs.rm(filePath, {recursive: true, force: true}, async () => {
                     await bot.editMessageText(`Upload done for ${name}`, {
                         chat_id: chat_id, message_id: message_id
                     }).catch(err => console.log(err.message))

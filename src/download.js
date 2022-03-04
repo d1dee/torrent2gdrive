@@ -1,6 +1,8 @@
 const torrentStream = require('torrent-stream');
 const path = require("path");
 const {upload} = require("./upload");
+const cliProgress = require('cli-progress');
+
 
 /**
  * @param {string} magnet Magnet link to download
@@ -19,12 +21,32 @@ exports.download = async (magnet, bot, chat_id, _id) => {
             trackers: ['udp://tracker.openbittorrent.com:80', 'udp://tracker.ccc.de:80'],
         });
 
+        const progress = new cliProgress.SingleBar({
+            format: `Downloading {name}
+{bar}| {percentage}%
+{pieces_count}/{total_pieces} Chunks || Speed: {speed}MB/s || Eta: {eta_formatted}`,
+            barCompleteChar: '\u2588',
+            barIncompleteChar: '\u2591',
+            hideCursor: true,
+            stopOnComplete:true,
+            clearOnComplete:true,
+            noTTYOutput:true,
+            notTTYSchedule:1000
+        });
+
+
         engine.on('ready', async () => {
+
             let {length, pieceLength, lastPieceLength} = engine.torrent,
                 totalPieces = ((length - lastPieceLength) / pieceLength) + 1,
-                pieceCount = 0, last_percentage, {message_id} = {}
-                    chat_id ? {message_id} = await bot.sendMessage(chat_id, `Download started for ${engine.torrent.name}`)
-                        .catch(err => console.log(err.message)) : undefined
+                pieceCount = 0, {message_id} = {}
+
+            progress.start(100, 0, {
+                speed: 0
+            })
+
+            chat_id ? {message_id} = await bot.sendMessage(chat_id, `Download started for ${engine.torrent.name}`)
+                .catch(err => console.log(err.message)) : undefined
             const {files} = engine
             files.forEach((file) => {
                 console.log('filename:', file.name)
@@ -34,20 +56,25 @@ exports.download = async (magnet, bot, chat_id, _id) => {
             let previous_date = Date.now()
 
             engine.on('download', async () => {
-                let currentPercentage = ((pieceCount / totalPieces) * 100).toFixed(2)
                 if (Date.now() >= (previous_date + 1000)) {
                     previous_date = Date.now()
-                    if (currentPercentage !== last_percentage && message_id) {
-                        await bot.editMessageText(`Downloading: \n ${engine.torrent.name} \n \tDownloaded ${currentPercentage}% \tSpeed: ${(engine.swarm.downloadSpeed() * 0.000001).toFixed(2)} MB/s`, {
-                            chat_id: chat_id,
-                            message_id: message_id
-                        }).catch((err) => console.log(err.message))
-                        last_percentage = currentPercentage
-                    }
+
+                    progress.update(Math.round((pieceCount * 100) / totalPieces), {
+                        pieces_count: pieceCount,
+                        total_pieces: totalPieces,
+                        speed: (engine.swarm.downloadSpeed() * 0.000001).toFixed(2),
+                        name: engine.torrent.name
+                    })
+
+                    await  bot.editMessageText(progress.lastDrawnString, {
+                        chat_id: chat_id,
+                        message_id: message_id
+                    }).catch((err) => console.log(err.message))
+
                 }
                 pieceCount++
             })
-            engine.on('idle',() => {
+            engine.on('idle', () => {
                 message_id ?
                     bot.editMessageText(`Download done for ${engine.torrent.name}`, {
                         chat_id: chat_id,
@@ -58,10 +85,10 @@ exports.download = async (magnet, bot, chat_id, _id) => {
                 engine.destroy(async () => {
                     let torrent = {
                         name: engine.torrent.name,
-                        path: path.join(__dirname, 'downloads',engine.torrent.name),
+                        path: path.join(__dirname, 'downloads', engine.torrent.name),
                         message_id: message_id
                     }
-                     upload(torrent, bot, chat_id, _id)
+                    upload(torrent, bot, chat_id, _id)
                 })
             })
         })
