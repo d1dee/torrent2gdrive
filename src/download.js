@@ -45,8 +45,8 @@ exports.download = async (magnet, bot, chat_id, _id) => {
             progress.start(100, 0, {
                 speed: 0
             })
-            chat_id
-                ? reply_message = await bot.sendMessage(chat_id, `Download started for ${engine.torrent.name}`)
+            reply_message =  chat_id
+                ? await bot.sendMessage(chat_id, `Download started for ${engine.torrent.name}`)
                     .catch(err => log.error(err.message))
                 : undefined
             const {files} = engine
