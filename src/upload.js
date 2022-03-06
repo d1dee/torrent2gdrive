@@ -268,6 +268,7 @@ Eta: {eta_formatted}`,
                 hideCursor: true,
                 stopOnComplete: true,
                 clearOnComplete: true,
+                barsize:20
             })
             progress.start(100, 0, {
                 speed: 0
