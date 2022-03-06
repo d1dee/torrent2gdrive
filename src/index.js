@@ -23,7 +23,6 @@ bot.on('message', async (message) => {
         let {reply_to_message_id} = {}
         let message_text = text.toString().toLowerCase()
 
-
         let {token, reply_message_id} = {}
         await db.findOne({chat_id: chat_id})
             .then(docs => {
@@ -94,7 +93,7 @@ Release date: ${release_date}  Rating: ${vote_average}
 
 Plot: ${overview}`
                 if (Date.parse(release_date) > Date.now()) {
-                    bot.sendMessage(chat_id, messages, {
+                   await  bot.sendMessage(chat_id, messages, {
                         parse_mode: 'HTML', cache_time: 0,
                         reply_markup: {
                             inline_keyboard: [[{
@@ -129,8 +128,7 @@ Plot: ${overview}`
 })
 
 bot.on('callback_query', async (callback) => {
-
-    const {message: {chat: {id: chat_id}}, data} = callback
+    const {message: {chat: {id: chat_id}},message_id, data} = callback
     const {tmdb_id, schedule, more_info, drive_id, media_type} = JSON.parse(data)
     console.log(data)
     if (drive_id) {
