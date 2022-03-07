@@ -199,19 +199,19 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                 if (!i) {
                     fileArray[i].id = (await makeDir(name)).id
                     for await (const file of fileArray[i].files) {
-                        upload_promise.push(await uploadFile(fileArray[i].fsPath, file, fileArray[i].id))
+                        await uploadFile(fileArray[i].fsPath, file, fileArray[i].id)
                     }
                 } else {
                     let parent = (fileArray.find(element => element.fsPath === (path.parse(fileArray[i].fsPath)).dir))
                     fileArray[i].id = (await makeDir((path.parse(fileArray[i].fsPath)).base, parent.id)).id
                     fileArray[i].parentId = parent.id
                     for await (const file of fileArray[i].files) {
-                        upload_promise.push(await uploadFile(fileArray[i].fsPath, file, fileArray[i].id))
+                        await uploadFile(fileArray[i].fsPath, file, fileArray[i].id)
                     }
                 }
             }
         } else if (fs.statSync(torrent_path).isFile()) {
-            upload_promise.push(await uploadFile(torrent_path, name))
+            await uploadFile(torrent_path, name)
         }
 
         //create folder for the torrent
@@ -235,9 +235,6 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
          */
 
         async function uploadFile(fsPath, filename, id) {
-            return new Promise(async (resolve, reject) => {
-
-
                 let fsMedia, parent = id, filePath = path.join(fsPath, filename);
 
                 if (!id) parent = drive_id
@@ -301,39 +298,32 @@ Eta: {eta_formatted}`,
                     }, retry: true
                 }, async (err) => {
                     progress.stop();
-                    (err)
-                        ? reject(err)
-                        : resolve('Success')
-                })
-            })
-        }
-
-        Promise.all(upload_promise)
-            .then(async (results) => {
-                console.log('called')
-                await fs.rm(torrent_path, {recursive: true, force: true}, async () => {
-                    await bot.editMessageText(`Upload done for ${name}`, {
-                        chat_id: chat_id, message_id: message_id
-                    }).catch(err => console.log(err.message))
-                })
-                if (_id) {
-                    await db.findOne({_id: _id})
-                        .then((doc) => {
-                            const {episode} = doc;
-                            db.updateOne({_id: _id}, {
-                                download: {
-                                    episode: episode.last_episode,
-                                    file_name: name,
-                                    parent_folder_id: parent,
-                                    downloaded: true,
-                                    download_date: Date.now(),
-                                }
-                            }).catch((err) => {
-                                console.log(err)
+                    err
+                        ? console.log(err)
+                        : fs.rm(torrent_path, {recursive: true, force: true}, async () => {
+                        await bot.editMessageText(`Upload done for ${name}`, {
+                            chat_id: chat_id, message_id: message_id
+                        }).catch(err => console.log(err.message))
+                    })
+                    if (_id) {
+                        await db.findOne({_id: _id})
+                            .then((doc) => {
+                                const {episode} = doc;
+                                db.updateOne({_id: _id}, {
+                                    download: {
+                                        episode: episode.last_episode,
+                                        file_name: name,
+                                        parent_folder_id: parent,
+                                        downloaded: true,
+                                        download_date: Date.now(),
+                                    }
+                                }).catch((err) => {
+                                    console.log(err)
+                                })
                             })
-                        })
-                }
-            })
+                    }
+                })
+        }
     } catch (err) {
         console.log(err)
         if (err === 'invalid_grant') {
