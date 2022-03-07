@@ -300,6 +300,7 @@ Eta: {eta_formatted}`,
                         }
                     }, retry: true
                 }, async (err) => {
+                    progress.stop();
                     (err)
                         ? reject(err)
                         : resolve('Success')
