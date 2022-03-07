@@ -199,14 +199,14 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                 if (!i) {
                     fileArray[i].id = (await makeDir(name)).id
                     for await (const file of fileArray[i].files) {
-                        upload_promise.push(uploadFile(fileArray[i].fsPath, file, fileArray[i].id))
+                        upload_promise.push(uploadFile(path.join(fileArray[i].fsPath), file, fileArray[i].id))
                     }
                 } else {
                     let parent = (fileArray.find(element => element.fsPath === (path.parse(fileArray[i].fsPath)).dir))
                     fileArray[i].id = (await makeDir((path.parse(fileArray[i].fsPath)).base, parent.id)).id
                     fileArray[i].parentId = parent.id
                     for await (const file of fileArray[i].files) {
-                        upload_promise.push(uploadFile(fileArray[i].fsPath, file, fileArray[i].id))
+                        upload_promise.push(uploadFile(path.join(fileArray[i].fsPath), file, fileArray[i].id))
                     }
                 }
             }
@@ -229,30 +229,25 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
         }
 
         /**
-         * @param fsPath {string } Path where torrent files were stored after download
+         * @param filePath
          * @param filename {string} Name of the torrent as of magnet link supplied
          * @param id {String=} Parent id string
          */
 
-        async function uploadFile(fsPath, filename, id) {
+        async function uploadFile(filePath, filename, id) {
             return new Promise(async (resolve, reject) => {
 
+                let fsMedia, parent = id
 
-                let fsMedia, parent = id, filePath = path.join(fsPath, filename);
+                (!id) ? parent = drive_id : null
 
-                if (!id) parent = drive_id
-                if (fs.statSync(fsPath).isFile()) {
+                if (fs.statSync(filePath).isFile()) {
                     fsMedia = {
-                        body: await fs.createReadStream(fsPath)
-                    }
-                } else {
-                    if (fs.statSync(filePath).isFile()) {
-                        fsMedia = {
-                            body: await fs.createReadStream(filePath)
-                        }
+                        body: await fs.createReadStream(filePath)
                     }
                 }
-                if (!fsMedia) return
+
+                if (!fsMedia) return reject({message: 'File not found',})
                 let previous_date = Date.now()
                 const progress = new cliProgress.SingleBar({
                     format: `Uploading {name}
@@ -300,6 +295,7 @@ Eta: {eta_formatted}`,
                         }
                     }, retry: true
                 }, async (err) => {
+                    progress.stop();
                     (err)
                         ? reject(err)
                         : resolve('Success')
