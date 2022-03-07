@@ -14,6 +14,7 @@ const {TMDB_API} = process.env
 
 exports.cron_job = async (bot) => {
     exports.tmdb_config()
+    trackers()
     console.log('Cron job running...')
     try {
         let to_download = await db.find({release_date: {$lte: Date.now()}})
@@ -126,4 +127,19 @@ exports.tmdb_config = async () => {
         .catch(err => console.log(err.message))
     await fs.writeFileSync(path.join(__dirname, 'tmdb.json'), JSON.stringify(tmdb_file))
 
+}
+
+function trackers (){
+    try {
+        axios.get('https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_all_ip.txt')
+            .then(async ({data})=>{
+
+                data = (data.toString().replace(/(\s)|('\\n')|\+/gm,'\'')).split('\'\'')
+                data.pop()
+                await fs.writeFileSync(path.join(__dirname, 'trackers.json'), JSON.stringify(data))
+            })
+    }
+    catch (err) {
+        console.log(err)
+    }
 }

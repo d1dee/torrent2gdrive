@@ -2,6 +2,7 @@ const torrentStream = require('torrent-stream');
 const path = require("path");
 const {upload} = require("./upload");
 const cliProgress = require('cli-progress');
+const fs = require("fs");
 
 
 /**
@@ -12,14 +13,16 @@ const cliProgress = require('cli-progress');
  */
 exports.download = async (magnet, bot, chat_id, _id) => {
     try {
+        let trackers = JSON.parse(fs.readFileSync(path.join(__dirname, 'trackers.json'), {encoding: 'utf8'}))
+
         console.log(magnet)
+
         let engine = torrentStream(magnet, {
             connections: 10000,     // Max amount of peers to be connected to.
             uploads: 100,          // Number of upload slots.
             tmp: path.join(__dirname, 'tmp'),
             path: path.join(__dirname, 'downloads'),
-            trackers: ['udp://tracker.openbittorrent.com:80',
-                'udp://tracker.ccc.de:80'],
+            trackers: trackers,
         });
 
         const progress = new cliProgress.SingleBar({
@@ -36,7 +39,6 @@ exports.download = async (magnet, bot, chat_id, _id) => {
             etaBuffer:20,
             barsize:20,
         });
-
 
         engine.on('ready', async () => {
 
@@ -73,7 +75,6 @@ exports.download = async (magnet, bot, chat_id, _id) => {
                         chat_id: chat_id,
                         message_id: message_id
                     }).catch((err) => console.log(err.message))
-
                 }
                 pieceCount++
             })
