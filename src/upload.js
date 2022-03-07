@@ -278,7 +278,7 @@ Eta: {eta_formatted}`,
                                 total_pieces: fs.statSync(filePath).size,
                                 name: filename
                             })
-                            await bot.editMessageText(progress.lastDrawnString || `Uploading filename  ${(Math.round((bytesRead * 100) / fs.statSync(filePath).size))} %`, {
+                            await bot.editMessageText(progress.lastDrawnString,{
                                 chat_id: chat_id,
                                 message_id: message_id
                             }).catch((err) => console.log(err.message))
@@ -303,7 +303,6 @@ Eta: {eta_formatted}`,
 
         Promise.all(upload_promise)
             .then(async (results) => {
-                console.log('called')
                 await fs.rm(torrent_path, {recursive: true, force: true}, async () => {
                     await bot.editMessageText(`Upload done for ${name}`, {
                         chat_id: chat_id, message_id: message_id
