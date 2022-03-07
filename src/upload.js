@@ -24,7 +24,6 @@ exports.driveInt = async (message, bot) => {
         });
         let {from: {first_name, username, id: chat_id, language_code, is_bot}} = message
 
-
         console.log('Waiting for auth')
         const {message_id} = await bot.sendMessage(chat_id, `Click on the below link to authorize this app to write to your Google Drive ${authUrl}`, {
             parse_mode: 'HTML',
@@ -216,7 +215,7 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
 
         //create folder for the torrent
         async function makeDir(dirName, parent) {
-            if (!parent) parent = drive_id
+            (!parent) ? parent = drive_id : null
             return (await drive.files.create({
                 supportsAllDrives: true, //allows uploading to TeamDrive
                 requestBody: {
@@ -237,17 +236,16 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
         async function uploadFile(filePath, filename, id) {
             return new Promise(async (resolve, reject) => {
 
-                let fsMedia, parent = id
+                let fsMedia, parent = (!id) ? drive_id : id;
 
-                (!id) ? parent = drive_id : null
-
-                if (fs.statSync(filePath).isFile()) {
-                    fsMedia = {
+                (fs.statSync(filePath).isFile())
+                    ? fsMedia = {
                         body: await fs.createReadStream(filePath)
                     }
-                }
+                    : reject({message: 'File not found',})
 
-                if (!fsMedia) return reject({message: 'File not found',})
+                if (!fsMedia) return
+
                 let previous_date = Date.now()
                 const progress = new cliProgress.SingleBar({
                     format: `Uploading {name}
