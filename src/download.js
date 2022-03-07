@@ -18,7 +18,8 @@ exports.download = async (magnet, bot, chat_id, _id) => {
             uploads: 100,          // Number of upload slots.
             tmp: path.join(__dirname, 'tmp'),
             path: path.join(__dirname, 'downloads'),
-            trackers: ['udp://tracker.openbittorrent.com:80', 'udp://tracker.ccc.de:80'],
+            trackers: ['udp://tracker.openbittorrent.com:80',
+                'udp://tracker.ccc.de:80'],
         });
 
         const progress = new cliProgress.SingleBar({

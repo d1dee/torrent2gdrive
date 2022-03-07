@@ -16,119 +16,142 @@ const bot = new node_telegram_bot(TELEGRAM_API, {polling: true})
 
 let availableTorrents = []
 
-bot.on('message', async (message) => {
+bot.on('text', async (message) => {
     try {
-        const {chat: {id: chat_id}, text, via_bot, reply_to_message} = message;
+        const {chat: {id: chat_id}, text, via_bot} = message;
 
-        let {reply_to_message_id} = {}
         let message_text = text.toString().toLowerCase()
 
-        let {token, reply_message_id} = {}
+        let {token} = {}
         await db.findOne({chat_id: chat_id})
             .then(docs => {
-                docs ? {token, reply_message_id} = docs : null
+                docs ? {token} = docs : null
             })
             .catch(err => console.log(err));
 
-        (message_text !== '/start' && reply_to_message) ? {message_id: reply_to_message_id} = reply_to_message : undefined
+        token ? await setAuth(chat_id, bot) : null
 
-        token ? await setAuth(chat_id, bot) : undefined
-
-        if (reply_to_message_id === reply_message_id) {
-            driveInt(message, bot, reply_message_id)
-        } else if (via_bot && !/^\//.test(message_text))
+        if (via_bot && !/^\//.test(message_text))
             return undefined
-        else if (message_text === '/start') {
-            await driveInt(message, bot)
-            bot.sendMessage(chat_id, `Welcome to Torrent2GDrive. This bot can help you easily upload any torrent to Google Drive. Type <code>/help </code> for Help`, {
-                parse_mode: 'HTML'
-            })
-        } else if (message_text === '/cron') {
-            cron_job(bot)
-        } else if (message_text === '/list_team_drive') {
-            await listTeamDrive(message, bot)
-        } else if (message_text === '/inline_search') {
-            bot.sendMessage(chat_id, 'Click below to search using inline mode', {
-                reply_markup: {
-                    inline_keyboard: [[{
-                        text: 'Inline search',
-                        switch_inline_query_current_chat: ''
-                    }]]
-                }
-            })
-        } else if (message_text === '/help') {
-            bot.sendMessage(chat_id, 'Click below to get a list of all available commands', {
-                reply_markup: {
-                    inline_keyboard: [[{
-                        text: 'Help.',
-                        switch_inline_query_current_chat: '/'
-                    }]]
-                }
-            })
-        } else if (/^magnet:.*/ig.test(message_text)) {
-            download(message_text, bot, chat_id)
-        } else {
-            if (reply_to_message_id) return
-            const results = await movieIndex(message_text)
-                .catch((err) => {
-                    console.log(err)
-                    bot.sendMessage(chat_id, `<code>${err.message}</code>`, {
-                        parse_mode: 'HTML'
-                    })
-                    throw err
-                });
-            results.forEach(async (element) => {
-                let {
-                    tmdb_id,
-                    genre,
-                    overview,
-                    poster_path,
-                    release_date,
-                    title,
-                    media_type,
-                    vote_average
-                } = element
-                let messages = `<a href="${poster_path}"><b>${title} </b>(${media_type})  ${genre.toString()}</a>
-Release date: ${release_date}  Rating: ${vote_average}
 
-Plot: ${overview}`
-                if (Date.parse(release_date) > Date.now()) {
-                   await  bot.sendMessage(chat_id, messages, {
-                        parse_mode: 'HTML', cache_time: 0,
-                        reply_markup: {
-                            inline_keyboard: [[{
-                                text: "⌚ Schedule ",
-                                callback_data: JSON.stringify({schedule: true, tmdb_id, media_type})
-                            },
-                                {
-                                    text: "✈ More Info",
-                                    callback_data: JSON.stringify({more_info: true, tmdb_id, media_type})
-                                }]]
-                        }
-                    }).catch((err) => console.log(err))
-                } else {
-                    await bot.sendMessage(chat_id, messages, {
-                        parse_mode: 'HTML', cache_time: 0,
-                        reply_markup: {
-                            inline_keyboard: [[{
-                                text: "⏬ Download ",
-                                switch_inline_query_current_chat: title
-                            }, {
-                                text: "✈ More Info",
-                                callback_data: JSON.stringify({more_info: true, tmdb_id, media_type})
-                            }]]
-                        }
-                    }).catch((err) => console.log(err))
-                }
-            })
+        switch (message_text) {
+            case '/start': {
+                await driveInt(message, bot)
+                bot.sendMessage(chat_id, `Welcome to Torrent2GDrive. This bot can help you easily upload any torrent to Google Drive. Type <code>/help </code> for Help`, {
+                    parse_mode: 'HTML'
+                })
+                break
+            }
+            case '/cron': {
+                cron_job(bot)
+                break
+            }
+            case '/auth_gdrive': {
+                driveInt(message, bot)
+                break
+            }
+            case '/list_team_drive': {
+                await listTeamDrive(message, bot)
+                break
+            }
+            case'/inline_search': {
+                bot.sendMessage(chat_id, 'Click below to search using inline mode', {
+                    reply_markup: {
+                        inline_keyboard: [[{
+                            text: 'Inline search',
+                            switch_inline_query_current_chat: ''
+                        }]]
+                    }
+                })
+                break
+            }
+            case '/help': {
+                bot.sendMessage(chat_id, 'Click below to get a list of all available commands', {
+                    reply_markup: {
+                        inline_keyboard: [[{
+                            text: 'Help.',
+                            switch_inline_query_current_chat: '/'
+                        }]]
+                    }
+                })
+                break
+            }
+            case  String(message_text.match(/^magnet:.*/ig)): {
+                console.log(String(message_text.match(/^magnet:.*/ig)))
+                download(message_text, bot, chat_id)
+                break
+            }
+            default: {
+                chatSearch(chat_id, message_text).catch(err => console.log(err))
+            }
         }
     } catch (err) {
         console.log(err)
     }
 })
 
+bot.on('edited_message_text', ({chat: {id: chat_id}, text}) => {
+    chatSearch(chat_id, text).catch(err => console.log(err))
+})
+
+async function chatSearch(chat_id, message_text) {
+    let results = ((await movieIndex(message_text)
+        .catch((err) => {
+            console.log(err)
+            bot.sendMessage(chat_id, `<code>${err.message}</code>`, {
+                parse_mode: 'HTML'
+            })
+            throw err
+        })).sort((a, b) => b.popularity > a.popularity)).slice(0,5)
+    results.forEach(async (element) => {
+        let {
+            tmdb_id,
+            genre,
+            overview,
+            poster_path,
+            release_date,
+            title,
+            media_type,
+            vote_average
+        } = element
+        let messages = `<a href="${poster_path}"><b>${title} </b>(${media_type})  ${genre.toString()}</a>
+Release date: ${release_date}  Rating: ${vote_average}
+
+Plot: ${overview}`
+        if (Date.parse(release_date) > Date.now()) {
+            await bot.sendMessage(chat_id, messages, {
+                parse_mode: 'HTML', cache_time: 0,
+                reply_markup: {
+                    inline_keyboard: [[{
+                        text: "⌚ Schedule ",
+                        callback_data: JSON.stringify({schedule: true, tmdb_id, media_type})
+                    },
+                        {
+                            text: "✈ More Info",
+                            callback_data: JSON.stringify({more_info: true, tmdb_id, media_type})
+                        }]]
+                }
+            }).catch((err) => console.log(err))
+        } else {
+            await bot.sendMessage(chat_id, messages, {
+                parse_mode: 'HTML', cache_time: 0,
+                reply_markup: {
+                    inline_keyboard: [[{
+                        text: "⏬ Download ",
+                        switch_inline_query_current_chat: title
+                    }, {
+                        text: "✈ More Info",
+                        callback_data: JSON.stringify({more_info: true, tmdb_id, media_type})
+                    }]]
+                }
+            }).catch((err) => console.log(err))
+        }
+    })
+}
+
+
 bot.on('callback_query', async (callback) => {
-    const {message: {chat: {id: chat_id}},message_id, data} = callback
+    const {message: {chat: {id: chat_id}}, data} = callback
     const {tmdb_id, schedule, more_info, drive_id, media_type} = JSON.parse(data)
     console.log(data)
     if (drive_id) {
@@ -283,7 +306,7 @@ bot.on('chosen_inline_result', async (chosen_Inline) => {
     }
 })
 
-nodeCron.schedule('0 */6 * * *',  () => {
+nodeCron.schedule('0 */6 * * *', () => {
     cron_job(bot).catch(err => console.log(err))
 }, {
     timezone: 'Africa/Nairobi'

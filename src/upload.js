@@ -15,63 +15,55 @@ const oAuth2Client = new google.auth.OAuth2(CLIENTID, CLIENTSECRET, REDIRECTURIS
  *
  * @param message {Object} Message object of the received message
  * @param bot {Object} Initialized Tg-bot object
- * @param reply_message_id {Number=}
  * @returns {Promise<void>}
  */
-exports.driveInt = async (message, bot, reply_message_id) => {
+exports.driveInt = async (message, bot) => {
     try {
         let authUrl = oAuth2Client.generateAuthUrl({
             access_type: 'offline', scope: SCOPES,
         });
-        let {text, from: {first_name, username, id: chat_id, language_code, is_bot}} = message
-        if (!reply_message_id) {
-            try {
-                console.log('Waiting for auth')
-                const {message_id} = await bot.sendMessage(chat_id, `Click on the below link to authorize this app to write to your Google Drive ${authUrl}`, {
-                    parse_mode: 'HTML',
-                    reply_markup: {
-                        force_reply: true
-                    }
-                }).catch(err => console.log(err))
-                console.log(chat_id, first_name)
-                await userDb.create({
-                    chat_id: chat_id,
-                    is_bot: is_bot,
-                    start_date: Date.now(),
-                    first_name: first_name,
-                    username: username,
-                    lang: language_code,
-                    reply_message_id: message_id
-                }, async (err) => {
-                    if (err) {
-                        console.log(err.message);
-                        err.code === 11000 ? await userDb.updateOne({chat_id: chat_id}, {reply_message_id: message_id}) : console.log('err')
-                    }
-                })
-            } catch (err) {
-                console.log(err)
+        let {from: {first_name, username, id: chat_id, language_code, is_bot}} = message
+
+
+        console.log('Waiting for auth')
+        const {message_id} = await bot.sendMessage(chat_id, `Click on the below link to authorize this app to write to your Google Drive ${authUrl}`, {
+            parse_mode: 'HTML',
+            reply_markup: {
+                force_reply: true
             }
-        } else if (reply_message_id) {
-            try {
-                oAuth2Client.getToken(text, async (err, token) => {
-                    if (err) {
-                        bot.sendMessage(chat_id, `Token error, kindly reAuthenticate <code> ${err} </code>`,
-                            {
-                                parse_mode: 'HTML'
-                            })
-                            .catch(err => console.log(err))
-                    } else {
-                        oAuth2Client.setCredentials(token);
-                        await userDb.updateOne({chat_id: chat_id}, {
-                            token: JSON.stringify(token)
+        }).catch(err => console.log(err))
+        console.log(chat_id, first_name)
+        await userDb.create({
+            chat_id: chat_id,
+            is_bot: is_bot,
+            start_date: Date.now(),
+            first_name: first_name,
+            username: username,
+            lang: language_code,
+            reply_message_id: message_id
+        }, async (err) => {
+            if (err) {
+                console.log(err.message);
+                err.code === 11000 ? await userDb.updateOne({chat_id: chat_id}, {reply_message_id: message_id}) : console.log('err')
+            }
+        })
+        bot.onReplyToMessage(chat_id, message_id, ({text}) => {
+            oAuth2Client.getToken(text, async (err, token) => {
+                if (err) {
+                    bot.sendMessage(chat_id, `Token error, kindly reAuthenticate <code> ${err} </code>`,
+                        {
+                            parse_mode: 'HTML'
                         })
-                        bot.sendMessage(chat_id, 'User token saved').catch(err => console.log(err))
-                    }
-                })
-            } catch (err) {
-                console.log(err)
-            }
-        }
+                        .catch(err => console.log(err))
+                } else {
+                    oAuth2Client.setCredentials(token);
+                    await userDb.updateOne({chat_id: chat_id}, {
+                        token: JSON.stringify(token)
+                    })
+                    bot.sendMessage(chat_id, 'User token saved').catch(err => console.log(err))
+                }
+            })
+        })
     } catch (err) {
         console.log(err)
     }
@@ -183,9 +175,9 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
      */
 
     try {
-        let user = await userDb.findOne({chat_id: chat_id, token: {$ne: null}}), fileArray = []
+        let user = await userDb.findOne({chat_id: chat_id, token: {$ne: null}}), fileArray = [], upload_promise = []
 
-        const {token, drive_id} = user, {path: torrent_path} = torrent;
+        const {token, drive_id} = user, {path: torrent_path, message_id, name} = torrent;
 
         oAuth2Client.setCredentials(JSON.parse(token));
         const drive = google.drive({version: 'v3', auth: oAuth2Client})
@@ -205,21 +197,21 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
             })
             for (let i = 0; i < fileArray.length; i++) {
                 if (!i) {
-                    fileArray[i].id = (await makeDir(torrent.name)).id
-                    fileArray[i].files.forEach((file) => {
-                        uploadFile(fileArray[i].fsPath, file, fileArray[i].id)
-                    })
+                    fileArray[i].id = (await makeDir(name)).id
+                    for await (const file of fileArray[i].files) {
+                        upload_promise.push(uploadFile(fileArray[i].fsPath, file, fileArray[i].id))
+                    }
                 } else {
                     let parent = (fileArray.find(element => element.fsPath === (path.parse(fileArray[i].fsPath)).dir))
                     fileArray[i].id = (await makeDir((path.parse(fileArray[i].fsPath)).base, parent.id)).id
                     fileArray[i].parentId = parent.id
                     for await (const file of fileArray[i].files) {
-                        await uploadFile(fileArray[i].fsPath, file, fileArray[i].id)
+                        upload_promise.push(uploadFile(fileArray[i].fsPath, file, fileArray[i].id))
                     }
                 }
             }
         } else if (fs.statSync(torrent_path).isFile()) {
-            await uploadFile(torrent_path, torrent.name)
+            upload_promise.push(uploadFile(torrent_path, name))
         }
 
         //create folder for the torrent
@@ -232,7 +224,7 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                     parents: [`${parent}`], //parent folder where to upload or work on
                     mimeType: 'application/vnd.google-apps.folder',
                 }
-            }).catch(err => console.log(err))).data
+            }).catch(err => throw err)).data
 
         }
 
@@ -241,6 +233,7 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
          * @param filename {string} Name of the torrent as of magnet link supplied
          * @param id {String=} Parent id string
          */
+
         async function uploadFile(fsPath, filename, id) {
             let fsMedia, parent = id, filePath = path.join(fsPath, filename);
 
@@ -257,7 +250,6 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                 }
             }
             if (!fsMedia) return
-            const {message_id, name} = torrent;
             let previous_date = Date.now()
             const progress = new cliProgress.SingleBar({
                 format: `Uploading {name}
@@ -268,7 +260,7 @@ Eta: {eta_formatted}`,
                 hideCursor: true,
                 stopOnComplete: true,
                 clearOnComplete: true,
-                barsize:20
+                barsize: 20
             })
             progress.start(100, 0, {
                 speed: 0
@@ -286,15 +278,15 @@ Eta: {eta_formatted}`,
                         previous_date = Date.now()
 
                         progress.update(Math.round((bytesRead * 100) / fs.statSync(filePath).size), {
-                        pieces_count: bytesRead,
-                        total_pieces: fs.statSync(filePath).size,
-                        name: filename
-                    })
-                    await bot.editMessageText(progress.lastDrawnString, {
-                        chat_id: chat_id,
-                        message_id: message_id
-                    }).catch((err) => console.log(err.message))
-                }
+                            pieces_count: bytesRead,
+                            total_pieces: fs.statSync(filePath).size,
+                            name: filename
+                        })
+                        await bot.editMessageText(progress.lastDrawnString || `Uploading filename  ${(Math.round((bytesRead * 100) / fs.statSync(filePath).size))} %`, {
+                            chat_id: chat_id,
+                            message_id: message_id
+                        }).catch((err) => console.log(err.message))
+                    }
                 },
                 retryConfig: {
                     retry: 10, retryDelay: 2000, onRetryAttempt: (err) => {
@@ -305,9 +297,13 @@ Eta: {eta_formatted}`,
                     }
                 }, retry: true
             }, async (err) => {
-                if (err) return console.log(err)
+                if (err) throw err
+            })
+        }
 
-                await fs.rm(filePath, {recursive: true, force: true}, async () => {
+        Promise.all(upload_promise)
+            .then(async (results) => {
+                await fs.rm(torrent_path, {recursive: true, force: true}, async () => {
                     await bot.editMessageText(`Upload done for ${name}`, {
                         chat_id: chat_id, message_id: message_id
                     }).catch(err => console.log(err.message))
@@ -330,7 +326,6 @@ Eta: {eta_formatted}`,
                         })
                 }
             })
-        }
     } catch (err) {
         console.log(err)
         if (err === 'invalid_grant') {
