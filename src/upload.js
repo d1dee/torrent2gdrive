@@ -198,14 +198,14 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                 if (!i) {
                     fileArray[i].id = (await makeDir(name)).id
                     for await (const file of fileArray[i].files) {
-                        upload_promise.push(uploadFile(path.join(fileArray[i].fsPath), file, fileArray[i].id))
+                        upload_promise.push(uploadFile(path.join(fileArray[i].fsPath,file), file, fileArray[i].id))
                     }
                 } else {
                     let parent = (fileArray.find(element => element.fsPath === (path.parse(fileArray[i].fsPath)).dir))
                     fileArray[i].id = (await makeDir((path.parse(fileArray[i].fsPath)).base, parent.id)).id
                     fileArray[i].parentId = parent.id
                     for await (const file of fileArray[i].files) {
-                        upload_promise.push(uploadFile(path.join(fileArray[i].fsPath), file, fileArray[i].id))
+                        upload_promise.push(uploadFile(path.join(fileArray[i].fsPath, file),file, fileArray[i].id))
                     }
                 }
             }
@@ -237,8 +237,8 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
             return new Promise(async (resolve, reject) => {
 
                 let fsMedia, parent = (!id) ? drive_id : id;
-
-                (fs.statSync(filePath).isFile())
+                console.log(filePath)
+                fs.statSync(filePath).isFile()
                     ? fsMedia = {
                         body: await fs.createReadStream(filePath)
                     }
@@ -326,7 +326,7 @@ Eta: {eta_formatted}`,
                             })
                         })
                 }
-            })
+            }).catch(err => {console.log(err)})
     } catch (err) {
         console.log(err)
         if (err === 'invalid_grant') {
