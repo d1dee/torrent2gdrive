@@ -235,74 +235,81 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
          */
 
         async function uploadFile(fsPath, filename, id) {
-            let fsMedia, parent = id, filePath = path.join(fsPath, filename);
+            return new Promise(async (resolve, reject) => {
 
-            if (!id) parent = drive_id
-            if (fs.statSync(fsPath).isFile()) {
-                fsMedia = {
-                    body: await fs.createReadStream(fsPath)
-                }
-            } else {
-                if (fs.statSync(filePath).isFile()) {
+
+                let fsMedia, parent = id, filePath = path.join(fsPath, filename);
+
+                if (!id) parent = drive_id
+                if (fs.statSync(fsPath).isFile()) {
                     fsMedia = {
-                        body: await fs.createReadStream(filePath)
+                        body: await fs.createReadStream(fsPath)
+                    }
+                } else {
+                    if (fs.statSync(filePath).isFile()) {
+                        fsMedia = {
+                            body: await fs.createReadStream(filePath)
+                        }
                     }
                 }
-            }
-            if (!fsMedia) return
-            let previous_date = Date.now()
-            const progress = new cliProgress.SingleBar({
-                format: `Uploading {name}
+                if (!fsMedia) return
+                let previous_date = Date.now()
+                const progress = new cliProgress.SingleBar({
+                    format: `Uploading {name}
 {bar}| {percentage}% 
 Eta: {eta_formatted}`,
-                barCompleteChar: '\u2588',
-                barIncompleteChar: '\u2591',
-                hideCursor: true,
-                stopOnComplete: true,
-                clearOnComplete: true,
-                barsize: 20
-            })
-            progress.start(100, 0, {
-                speed: 0
-            })
+                    barCompleteChar: '\u2588',
+                    barIncompleteChar: '\u2591',
+                    hideCursor: true,
+                    stopOnComplete: true,
+                    clearOnComplete: true,
+                    barsize: 20
+                })
+                progress.start(100, 0, {
+                    speed: 0
+                })
 
-            drive.files.create({
-                supportsAllDrives: true, //allows uploading to TeamDrive
-                requestBody: {
-                    name: filename, //name the file will go by at Google Drive (extension determines the file type if mimetype is ignored)
-                    parents: [`${parent}`], //parent folder where to upload or work on
-                }, media: fsMedia
-            }, {
-                onUploadProgress: async ({bytesRead}) => {
-                    if (Date.now() >= (previous_date + 1000)) {
-                        previous_date = Date.now()
+                drive.files.create({
+                    supportsAllDrives: true, //allows uploading to TeamDrive
+                    requestBody: {
+                        name: filename, //name the file will go by at Google Drive (extension determines the file type if mimetype is ignored)
+                        parents: [`${parent}`], //parent folder where to upload or work on
+                    }, media: fsMedia
+                }, {
+                    onUploadProgress: async ({bytesRead}) => {
+                        if (Date.now() >= (previous_date + 1000)) {
+                            previous_date = Date.now()
 
-                        progress.update(Math.round((bytesRead * 100) / fs.statSync(filePath).size), {
-                            pieces_count: bytesRead,
-                            total_pieces: fs.statSync(filePath).size,
-                            name: filename
-                        })
-                        await bot.editMessageText(progress.lastDrawnString || `Uploading filename  ${(Math.round((bytesRead * 100) / fs.statSync(filePath).size))} %`, {
-                            chat_id: chat_id,
-                            message_id: message_id
-                        }).catch((err) => console.log(err.message))
-                    }
-                },
-                retryConfig: {
-                    retry: 10, retryDelay: 2000, onRetryAttempt: (err) => {
-                        bot.editMessageText(`Upload failed for ${filename} retrying...`, {
-                            chat_id: chat_id, message_id: message_id
-                        }).catch(err => console.log(err.message))
-                        console.log(err)
-                    }
-                }, retry: true
-            }, async (err) => {
-                if (err) throw err
+                            progress.update(Math.round((bytesRead * 100) / fs.statSync(filePath).size), {
+                                pieces_count: bytesRead,
+                                total_pieces: fs.statSync(filePath).size,
+                                name: filename
+                            })
+                            await bot.editMessageText(progress.lastDrawnString || `Uploading filename  ${(Math.round((bytesRead * 100) / fs.statSync(filePath).size))} %`, {
+                                chat_id: chat_id,
+                                message_id: message_id
+                            }).catch((err) => console.log(err.message))
+                        }
+                    },
+                    retryConfig: {
+                        retry: 10, retryDelay: 2000, onRetryAttempt: (err) => {
+                            bot.editMessageText(`Upload failed for ${filename} retrying...`, {
+                                chat_id: chat_id, message_id: message_id
+                            }).catch(err => console.log(err.message))
+                            console.log(err)
+                        }
+                    }, retry: true
+                }, async (err) => {
+                    (err)
+                        ? reject(err)
+                        : resolve('Success')
+                })
             })
         }
 
         Promise.all(upload_promise)
             .then(async (results) => {
+                console.log('called')
                 await fs.rm(torrent_path, {recursive: true, force: true}, async () => {
                     await bot.editMessageText(`Upload done for ${name}`, {
                         chat_id: chat_id, message_id: message_id
