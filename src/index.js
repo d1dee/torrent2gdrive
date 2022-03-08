@@ -1,4 +1,5 @@
 require('dotenv').config({path: '.env'})
+const log = require('loglevel')
 const dbCon = require('./dbConnect'), node_telegram_bot = require('node-telegram-bot-api'), {
         movieIndex,
         torrentDownload
@@ -8,38 +9,39 @@ const dbCon = require('./dbConnect'), node_telegram_bot = require('node-telegram
         driveInt
     } = require("./upload"), {download} = require('./download'),
     userDb = require("./schemas/userSchema"), {cron_job} = require("./cron-job"), nodeCron = require("node-cron");
-
-dbCon.dbConnect().then(() => console.log('db connected')).catch(err => console.log(err))
-
 const {TELEGRAM_API} = process.env;
 const bot = new node_telegram_bot(TELEGRAM_API, {polling: true})
 
-let availableTorrents = []
+dbCon.dbConnect().then(() => log.info('db connected')).catch(err => log.error(err))
+
+log.enableAll();
 
 bot.on('text', async (message) => {
     try {
-        const {chat: {id: chat_id}, text, via_bot} = message;
+        const {chat: {id: chat_id}, text, via_bot,reply_to_message} = message;
 
         let message_text = text.toString().toLowerCase()
+
+        if (via_bot && !/^\//.test(message_text) || reply_to_message)
+            return undefined
 
         let {token} = {}
         await db.findOne({chat_id: chat_id})
             .then(docs => {
                 docs ? {token} = docs : null
             })
-            .catch(err => console.log(err));
+            .catch(err => {
+                log.error(err)
+            });
 
         token ? await setAuth(chat_id, bot) : null
-
-        if (via_bot && !/^\//.test(message_text))
-            return undefined
 
         switch (message_text) {
             case '/start': {
                 await driveInt(message, bot)
                 bot.sendMessage(chat_id, `Welcome to Torrent2GDrive. This bot can help you easily upload any torrent to Google Drive. Type <code>/help </code> for Help`, {
                     parse_mode: 'HTML'
-                })
+                }).catch(err=> log.error(err.message))
                 break
             }
             case '/cron': {
@@ -62,7 +64,7 @@ bot.on('text', async (message) => {
                             switch_inline_query_current_chat: ''
                         }]]
                     }
-                })
+                }).catch(err=>log.error(err.message))
                 break
             }
             case '/help': {
@@ -73,36 +75,35 @@ bot.on('text', async (message) => {
                             switch_inline_query_current_chat: '/'
                         }]]
                     }
-                })
+                }).catch(err=>log.error(err.message))
                 break
             }
             case  String(message_text.match(/^magnet:.*/ig)): {
-                console.log(String(message_text.match(/^magnet:.*/ig)))
+                log.info('Magnet link received')
                 download(message_text, bot, chat_id)
                 break
             }
             default: {
-                chatSearch(chat_id, message_text).catch(err => console.log(err))
+                chatSearch(chat_id, message_text).catch(err => log.error(err))
             }
         }
     } catch (err) {
-        console.log(err)
+        log.error(err)
     }
 })
 
 bot.on('edited_message_text', ({chat: {id: chat_id}, text}) => {
-    chatSearch(chat_id, text).catch(err => console.log(err))
+    chatSearch(chat_id, text).catch(err=>log.error(err.message))
 })
 
 async function chatSearch(chat_id, message_text) {
     let results = ((await movieIndex(message_text)
         .catch((err) => {
-            console.log(err)
+            log.error(err)
             bot.sendMessage(chat_id, `<code>${err.message}</code>`, {
                 parse_mode: 'HTML'
             })
-            throw err
-        })).sort((a, b) => b.popularity > a.popularity)).slice(0,5)
+        })).sort((a, b) => b.popularity > a.popularity)).slice(0, 5)
     results.forEach(async (element) => {
         let {
             tmdb_id,
@@ -131,7 +132,7 @@ Plot: ${overview}`
                             callback_data: JSON.stringify({more_info: true, tmdb_id, media_type})
                         }]]
                 }
-            }).catch((err) => console.log(err))
+            }).catch((err) => log.error(err.message))
         } else {
             await bot.sendMessage(chat_id, messages, {
                 parse_mode: 'HTML', cache_time: 0,
@@ -144,7 +145,7 @@ Plot: ${overview}`
                         callback_data: JSON.stringify({more_info: true, tmdb_id, media_type})
                     }]]
                 }
-            }).catch((err) => console.log(err))
+            }).catch((err) => log.error(err.message))
         }
     })
 }
@@ -153,7 +154,7 @@ Plot: ${overview}`
 bot.on('callback_query', async (callback) => {
     const {message: {chat: {id: chat_id}}, data} = callback
     const {tmdb_id, schedule, more_info, drive_id, media_type} = JSON.parse(data)
-    console.log(data)
+    log.info(data)
     if (drive_id) {
         listTeamDrive(callback, bot, data)
     } else if (schedule) {
@@ -170,7 +171,7 @@ bot.on('callback_query', async (callback) => {
                 in_production,
                 original_title, title
             } = await movieIndex({tmdb_id, media_type}).catch(err => {
-                console.log(err)
+                log.error(err)
             })
             let message =
                 `<a href="${poster_path}"><b>${title || original_title}</b> <i>(${media_type}) ${genres}</i></a>  <i>${tagline ? '\n' + tagline : ''}</i>
@@ -194,7 +195,7 @@ bot.on('callback_query', async (callback) => {
                         }]]
                     }
 
-                }).catch(err => console.log(err))
+                }).catch(err=>log.error(err.message))
             } else {
                 bot.sendMessage(chat_id, message, {
                     parse_mode: 'HTML', cache_time: 0, "reply_markup": {
@@ -202,10 +203,10 @@ bot.on('callback_query', async (callback) => {
                             text: "⏬ Download ", "switch_inline_query_current_chat": title || name
                         }]]
                     }
-                }).catch(err => console.log(err))
+                }).catch(err => log.error(err.message))
             }
         } catch (err) {
-            console.log(err)
+            log.error(err)
         }
     }
 })
@@ -239,7 +240,7 @@ bot.on('inline_query', async ({query, id: query_id}) => {
                 message_text: command
             })
         })
-        bot.answerInlineQuery(query_id, inline_result).catch(err => console.log(err))
+        bot.answerInlineQuery(query_id, inline_result).catch(err => log.error(err.message))
     } else if (!query || query.length < 3) {
         query ?
             bot.answerInlineQuery(query_id, [{
@@ -248,11 +249,10 @@ bot.on('inline_query', async ({query, id: query_id}) => {
                 title: "Searching....",
                 description: "",
                 message_text: query
-            }], {cache_time: 0}).catch(err => console.log(err)) : null
+            }], {cache_time: 5}).catch(err => log.error(err.message)) : null
     } else {
         await torrentDownload(query)
             .then((data) => {
-                availableTorrents = data
                 let response = []
                 data.forEach(({age, leeches, name, seeds, size, type, provider}, index) => {
                     response.push({
@@ -271,6 +271,8 @@ bot.on('inline_query', async ({query, id: query_id}) => {
                     )
                 })
                 bot.answerInlineQuery(query_id, response, {cache_time: 1})
+                    .then(_ => chosenInlineResults(data))
+                    .catch(err => log.error(err.message))
             })
             .catch(err => {
                 if (err.search_error) {
@@ -280,34 +282,36 @@ bot.on('inline_query', async ({query, id: query_id}) => {
                         title: `No results found for ${query}`,
                         description: "Try checking for typing errors or try another search term.",
                         message_text: query || ' '
-                    }])
+                    }]).catch(err=>log.error(err.message))
                 }
-                console.log(err)
+                log.error(err.message)
             })
     }
 })
 
-bot.on('chosen_inline_result', async (chosen_Inline) => {
-    try {
-        const {query, result_id, from: {id: chat_id}} = chosen_Inline
-        if ((/^\//g).test(query)) return
-        if (!await userDb.findOne({chat_id: chat_id, token: {$ne: null}})) {
-            bot.sendMessage(chat_id, 'You\'ll have to authenticate your account so as to be able access your downloads.')
-                .then(() => driveInt(chosen_Inline, bot))
-                .catch((err) => console.log(err))
-        } else {
-            const {magnet} = availableTorrents[result_id];
-            availableTorrents[result_id] ?
-                download(magnet, bot, chat_id)
-                : null
+function chosenInlineResults(availableTorrents) {
+    bot.on('chosen_inline_result', async (chosen_Inline) => {
+        try {
+            const {query, result_id, from: {id: chat_id}} = chosen_Inline
+            if ((/^\//g).test(query)) return
+            if (!await userDb.findOne({chat_id: chat_id, token: {$ne: null}})) {
+                bot.sendMessage(chat_id, 'You\'ll have to authenticate your account before downloading any file.')
+                    .then(() => driveInt(chosen_Inline, bot))
+                    .catch((err) => log.error(err.message))
+            } else {
+                const {magnet} = availableTorrents[result_id];
+                availableTorrents[result_id] ?
+                    download(magnet, bot, chat_id)
+                    : null
+            }
+        } catch (err) {
+            log.error(err)
         }
-    } catch (err) {
-        console.log(err)
-    }
-})
+    })
+}
 
 nodeCron.schedule('0 */6 * * *', () => {
-    cron_job(bot).catch(err => console.log(err))
+    cron_job(bot).catch(err => log.error(err))
 }, {
     timezone: 'Africa/Nairobi'
 })

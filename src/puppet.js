@@ -4,6 +4,7 @@ const {path} = require("file");
 
 let tmdb_config = JSON.parse(fs.readFileSync(path.join(__dirname, 'tmdb.json'), {encoding: 'utf8'}))
 const {images: {secure_base_url}} = tmdb_config[0], {genres} = tmdb_config[1]
+const log = require('loglevel');
 /**
  *
  * @param query {String || Object} if a string is supplied, this will be the search term to request from TMDB.
@@ -13,7 +14,7 @@ const {images: {secure_base_url}} = tmdb_config[0], {genres} = tmdb_config[1]
 
 exports.movieIndex = async (query) => {
     const {tmdb_id, media_type} = query
-    console.log(query)
+    log.info(query)
     if (tmdb_id && media_type) {
         return new Promise(async (resolve, reject) => {
             let data
@@ -22,7 +23,7 @@ exports.movieIndex = async (query) => {
                     .then((response) => {
                         data = response.data
                     }).catch(err => {
-                        console.log(err);
+                        log.error(err);
                         reject({axios_error: true})
                     })
             } else if (media_type === 'tv') {
@@ -31,7 +32,7 @@ exports.movieIndex = async (query) => {
                         data = response.data
                     })
                     .catch(err => {
-                        console.log(err);
+                        log.error(err);
                         reject({axios_error: true})
                     })
             }
@@ -130,7 +131,7 @@ exports.movieIndex = async (query) => {
                     }) : resolve(return_data)
                 })
                 .catch(err => {
-                    console.log(err)
+                    log.error(err)
                     reject({message: err.message})
                 })
         })
@@ -188,7 +189,7 @@ async function multiSearch(query) {
  */
 exports.torrentDownload = async (query, site) => {
     return new Promise((resolve, reject) => {
-        console.log(query)
+        log.info(query)
         let returnData = []
         if (!site) site = 'all'
         axios.get(`https://d1dee-api-d1dee.koyeb.app/api/${site}/${query}`)
@@ -228,7 +229,7 @@ exports.torrentDownload = async (query, site) => {
                             })
                         })
 
-                console.log('Got ', returnData.length, ' for ', query)
+                log.info('Got ', returnData.length, ' for ', query)
                 resolve((returnData.sort((a, b) => {
                     return b.seeds - a.seeds;
                 })).slice(0, 50))

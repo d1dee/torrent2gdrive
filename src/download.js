@@ -3,6 +3,8 @@ const path = require("path");
 const {upload} = require("./upload");
 const cliProgress = require('cli-progress');
 const fs = require("fs");
+const log = require('loglevel');
+
 
 
 /**
@@ -15,7 +17,7 @@ exports.download = async (magnet, bot, chat_id, _id) => {
     try {
         let trackers = JSON.parse(fs.readFileSync(path.join(__dirname, 'trackers.json'), {encoding: 'utf8'}))
 
-        console.log(magnet)
+        log.info(magnet)
 
         let engine = torrentStream(magnet, {
             connections: 10000,     // Max amount of peers to be connected to.
@@ -51,10 +53,10 @@ exports.download = async (magnet, bot, chat_id, _id) => {
             })
 
             chat_id ? {message_id} = await bot.sendMessage(chat_id, `Download started for ${engine.torrent.name}`)
-                .catch(err => console.log(err.message)) : undefined
+                .catch(err => log.error(err.message)) : undefined
             const {files} = engine
             files.forEach((file) => {
-                console.log('filename:', file.name)
+                log.info('filename:', file.name)
                 file.select()
             })
 
@@ -74,7 +76,9 @@ exports.download = async (magnet, bot, chat_id, _id) => {
                     await  bot.editMessageText(progress.lastDrawnString, {
                         chat_id: chat_id,
                         message_id: message_id
-                    }).catch((err) => console.log(err.message))
+                    }).catch((err) => log.error(err.message))
+
+                    console.clear()
                 }
                 pieceCount++
             })
@@ -83,9 +87,9 @@ exports.download = async (magnet, bot, chat_id, _id) => {
                     bot.editMessageText(`Download done for ${engine.torrent.name}`, {
                         chat_id: chat_id,
                         message_id: message_id
-                    }).catch(err => console.log(err.message))
+                    }).catch(err => log.error(err.message))
                     : chat_id ? bot.sendMessage(chat_id, `Download done for ${engine.torrent.name}`)
-                        .catch(err => console.log(err.message)) : undefined
+                        .catch(err => log.error(err.message)) : undefined
                 engine.destroy(async () => {
                     let torrent = {
                         name: engine.torrent.name,
@@ -97,7 +101,7 @@ exports.download = async (magnet, bot, chat_id, _id) => {
             })
         })
     } catch (err) {
-        console.log(err.message)
+        log.error(err.message)
     }
 
 }

@@ -5,6 +5,7 @@ const {download} = require("./download")
 const fs = require("fs");
 const {path} = require("file");
 const {scheduler} = require("./schedule");
+const log = require('loglevel');
 
 const {TMDB_API} = process.env
 
@@ -15,7 +16,7 @@ const {TMDB_API} = process.env
 exports.cron_job = async (bot) => {
     exports.tmdb_config()
     trackers()
-    console.log('Cron job running...')
+    log.info('Cron job running...')
     try {
         let to_download = await db.find({release_date: {$lte: Date.now()}})
         let scheduler_promise = []
@@ -25,14 +26,14 @@ exports.cron_job = async (bot) => {
             if (media_type === 'movie') {
                 scheduler_promise.push(scheduler({tmdb_id, media_type}, bot, chat_id, _id)
                     .catch((err) => {
-                        console.log(err)
+                        log.error(err)
                     }))
             } else if (media_type === 'tv') {
                 (!complete && next_episode_date)
                     ? (Date.parse(next_episode_date) <= Date.now())
                         ? scheduler_promise.push(scheduler({tmdb_id, media_type}, bot, chat_id, _id)
                             .catch((err) => {
-                                console.log(err)
+                                log.error(err)
                             }))
                         : null
                     : null
@@ -40,13 +41,13 @@ exports.cron_job = async (bot) => {
         })
         Promise.all(scheduler_promise)
             .then(_ => {
-                    console.log("DB Promise resolved successfully")
+                    log.info("DB Promise resolved successfully")
                     cron_download(bot)
                 }
             )
-            .catch(err => console.log(err))
+            .catch(err => log.error(err))
     } catch (err) {
-        console.log(err)
+        log.error(err)
     }
 }
 
@@ -73,10 +74,10 @@ async function cron_download(bot) {
                                 : (/(WEB(\W|\s|)Rip )|(WEB(\s|\W)DL)|(Blu(\W|\s|)Ray)/gi).test(element.name)
                                     ? element.name.match((new RegExp(title.replace(/(\W|\s)/ig, '(\\W|\\s|).?'), 'ig')))
                                         ? (Number.parseFloat(element.size) < 3 && element.seeds > 50)
-                                        : console.log(`No result found matching ${title}`)
+                                        : log.warn(`No result found matching ${title}`)
                                     : null
                         });
-                        element ? download(element.magnet, bot, chat_id, _id) : console.log(`No result found matching ${title}`)
+                        element ? download(element.magnet, bot, chat_id, _id) : log.warn(`No result found matching ${title}`)
                     })
 
             } else if (media_type === 'tv') {
@@ -92,18 +93,18 @@ async function cron_download(bot) {
                                     ? (/(web(\W|\s|)rip)|(hd(\W|\s|)tv)/gi).test(element.name)
                                         ? element.name.match((new RegExp(title.replace(/(\W|\s)/ig, '(\\W|\\s|).?'), 'ig')))
                                             ? (Number.parseFloat(element.size) > 300 || Number.parseFloat(element.size) < 2 && element.seeds > 50)
-                                            : console.log(`No result found matching ${title}`)
+                                            : log.warn(`No result found matching ${title}`)
                                         : null
                                     : null
                             })
-                            element ? download(element.magnet, bot, chat_id, _id) : console.log(`No result found matching ${title}`)
+                            element ? download(element.magnet, bot, chat_id, _id) : log.warn(`No result found matching ${title}`)
 
                         })
-                    : console.log(`Already downloaded ${title}`)
+                    : log.warn(`Already downloaded ${title}`)
             }
         })
     } catch (err) {
-        console.log(err)
+        log.error(err)
     }
 }
 
@@ -124,7 +125,7 @@ exports.tmdb_config = async () => {
                 tmdb_file.push(data)
             })
         })
-        .catch(err => console.log(err.message))
+        .catch(err => log.error(err.message))
     await fs.writeFileSync(path.join(__dirname, 'tmdb.json'), JSON.stringify(tmdb_file))
 
 }
@@ -140,6 +141,6 @@ function trackers (){
             })
     }
     catch (err) {
-        console.log(err)
+        log.error(err)
     }
 }

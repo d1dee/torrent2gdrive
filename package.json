@@ -23,6 +23,7 @@
     "dotenv": "^16.0.0",
     "file": "^0.2.2",
     "googleapis": "^95.0.0",
+    "loglevel": "^1.8.0",
     "mongoose": "^6.2.1",
     "node-cron": "^3.0.0",
     "node-telegram-bot-api": "^0.56.0",
