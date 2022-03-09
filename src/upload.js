@@ -344,9 +344,9 @@ Eta: {eta_formatted}`,
                 })
                 if (_id) {
                     await db.findOne({_id: _id})
-                        .then((doc) => {
+                        .then(async (doc) => {
                             const {episode} = doc;
-                            db.updateOne({_id: _id}, {
+                            await db.updateOne({_id: _id}, {
                                 download: {
                                     episode: episode.last_episode,
                                     file_name: name,
