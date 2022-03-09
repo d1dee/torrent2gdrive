@@ -270,7 +270,7 @@ bot.on('inline_query', async ({query, id: query_id}) => {
                         }
                     )
                 })
-                bot.answerInlineQuery(query_id, response, {cache_time: 1})
+                bot.answerInlineQuery(query_id, response, {cache_time: 10})
                     .then(_ => chosenInlineResults(data))
                     .catch(err => log.error(err.message))
             })
@@ -299,9 +299,8 @@ function chosenInlineResults(availableTorrents) {
                     .then(() => driveInt(chosen_Inline, bot))
                     .catch((err) => log.error(err.message))
             } else {
-                const {magnet} = availableTorrents[result_id];
                 availableTorrents[result_id] ?
-                    download(magnet, bot, chat_id)
+                    download(availableTorrents[result_id].magnet, bot, chat_id)
                     : null
             }
         } catch (err) {

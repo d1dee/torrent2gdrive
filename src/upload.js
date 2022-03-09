@@ -340,12 +340,12 @@ Eta: {eta_formatted}`,
                     }).catch(err => log.error(err.message))
                 })
                 _id
-                    ? db.findOne({_id: _id})
+                    ? await db.findOne({_id: _id})
                         .then(async (doc) => {
-                            const {episode} = doc;
+                            console.log(doc)
                             await db.updateOne({_id: _id}, {
                                 download: {
-                                    episode: episode.last_episode,
+                                    episode: doc.episode.last_episode,
                                     file_name: name,
                                     parent_folder_id: parent,
                                     downloaded: true,
