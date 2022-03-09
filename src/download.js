@@ -64,7 +64,6 @@ exports.download = async (magnet, bot, chat_id, _id) => {
                 Date.now() > (last_date + 1000)
                     ? (async () => {
                         last_date = Date.now()
-                        console.log('heeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', progress)
                         await bot.editMessageText(progress.lastDrawnString, {
                             chat_id: chat_id,
                             message_id: reply_message.message_id
