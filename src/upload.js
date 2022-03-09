@@ -206,7 +206,6 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
      *     message_id:
      * }
      */
-
     try {
         let user = await userDb.findOne({chat_id: chat_id, token: {$ne: null}}), fileArray = [], upload_promise = []
 
@@ -218,7 +217,6 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
             /**
              * Maps the entire torrent folder to an array fileArray
              */
-            //
             file.walkSync(path.normalize(torrent_path), async (fsPath, dirs, files) => {
                 fileArray.push({
                     fsPath: fsPath, //complete file path
@@ -246,7 +244,6 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
         } else if (fs.statSync(torrent_path).isFile()) {
             upload_promise.push(uploadFile(torrent_path, name))
         }
-
         //create folder for the torrent
         async function makeDir(dirName, parent) {
             (!parent) ? parent = drive_id : null
@@ -258,7 +255,6 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                     mimeType: 'application/vnd.google-apps.folder',
                 }
             }).catch(err => log.error(err))).data
-
         }
 
         /**
@@ -269,7 +265,6 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
 
         async function uploadFile(filePath, filename, id) {
             return new Promise(async (resolve, reject) => {
-
                 let fsMedia, parent = (!id) ? drive_id : id;
                 fs.statSync(filePath).isFile()
                     ? fsMedia = {
@@ -293,7 +288,6 @@ Eta: {eta_formatted}`,
                 progress.start(100, 0, {
                     speed: 0
                 })
-
                 drive.files.create({
                     supportsAllDrives: true, //allows uploading to TeamDrive
                     requestBody: {
@@ -354,7 +348,6 @@ Eta: {eta_formatted}`,
                                 log.error(err)
                             })
                         }) : null
-
             }).catch(err => log.error(err))
     } catch (err) {
         log.error(err)

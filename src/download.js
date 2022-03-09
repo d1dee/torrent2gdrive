@@ -4,9 +4,6 @@ const {upload} = require("./upload");
 const cliProgress = require('cli-progress');
 const fs = require("fs");
 const log = require('loglevel');
-
-
-
 /**
  * @param {string} magnet Magnet link to download
  * @param {object} bot Telegram bot to use when sending messages
@@ -26,32 +23,25 @@ exports.download = async (magnet, bot, chat_id, _id) => {
             path: path.join(__dirname, 'downloads'),
             trackers: trackers,
         });
-
         const progress = new cliProgress.SingleBar({
             format: `Downloading {name}
 {bar}| {percentage}%
 {pieces_count}/{total_pieces} Chunks || Speed: {speed}MB/s || Eta: {eta_formatted}`,
             barCompleteChar: '\u2588',
             barIncompleteChar: '\u2591',
-            hideCursor: true,
             stopOnComplete:true,
             clearOnComplete:true,
-            noTTYOutput:true,
-            notTTYSchedule:1000,
             etaBuffer:20,
             barsize:30,
+            fps: 1 //reduce amount draws per second
         });
-
         engine.on('ready', async () => {
-
             let {length, pieceLength, lastPieceLength} = engine.torrent,
                 totalPieces = ((length - lastPieceLength) / pieceLength) + 1,
                 pieceCount = 0, {message_id} = {}
-
             progress.start(100, 0, {
                 speed: 0
             })
-
             chat_id ? {message_id} = await bot.sendMessage(chat_id, `Download started for ${engine.torrent.name}`)
                 .catch(err => log.error(err.message)) : undefined
             const {files} = engine
@@ -59,9 +49,7 @@ exports.download = async (magnet, bot, chat_id, _id) => {
                 log.info('filename:', file.name)
                 file.select()
             })
-
             engine.on('download', async () => {
-
                     progress.update(Math.round((pieceCount * 100) / totalPieces), {
                         pieces_count: pieceCount,
                         total_pieces: totalPieces,
@@ -73,8 +61,6 @@ exports.download = async (magnet, bot, chat_id, _id) => {
                         chat_id: chat_id,
                         message_id: message_id
                     }).catch((err) => log.error(err.message))
-
-                    console.clear()
                 })
                 pieceCount++
             })
@@ -99,5 +85,4 @@ exports.download = async (magnet, bot, chat_id, _id) => {
     } catch (err) {
         log.error(err.message)
     }
-
 }
