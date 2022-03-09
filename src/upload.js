@@ -281,11 +281,14 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
 Eta: {eta_formatted}`,
                     barCompleteChar: '\u2588',
                     barIncompleteChar: '\u2591',
-                    stopOnComplete: true,
-                    clearOnComplete: true,
-                    barsize: 30,
                     hideCursor: true,
-                    fps: 1
+                    stopOnComplete:true,
+                    clearOnComplete:true,
+                    noTTYOutput:true,
+                    notTTYSchedule:60000,
+                    etaBuffer:20,
+                    barsize: 30,
+                    fps: 1 //reduce amount draws per second
                 })
                 progress.start(100, 0, {
                     speed: 0
