@@ -28,14 +28,12 @@ exports.download = async (magnet, bot, chat_id, _id) => {
             format: `Downloading {name}
 {bar}| {percentage}%
 {pieces_count}/{total_pieces} Chunks || Speed: {speed}MB/s || Eta: {eta_formatted}`,
-            barCompleteChar: '\u2588',
-            barIncompleteChar: '\u2591',
-            stopOnComplete: true,
-            clearOnComplete: true,
-            etaBuffer: 20,
-            barsize: 30,
             hideCursor: true,
-            fps: 1 //reduce amount draws per second
+            stopOnComplete:true,
+            clearOnComplete:true,
+            noTTYOutput:true,
+            notTTYSchedule:1000,
+            etaBuffer:20
         });
 
         engine.on('ready', async () => {
