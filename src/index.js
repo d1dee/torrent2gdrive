@@ -18,7 +18,7 @@ log.enableAll();
 
 bot.on('text', async (message) => {
     try {
-        const {chat: {id: chat_id}, text, via_bot,reply_to_message} = message;
+        const {chat: {id: chat_id}, text, via_bot, reply_to_message} = message;
 
         let message_text = text.toString().toLowerCase()
 
@@ -41,7 +41,7 @@ bot.on('text', async (message) => {
                 await driveInt(message, bot)
                 bot.sendMessage(chat_id, `Welcome to Torrent2GDrive. This bot can help you easily upload any torrent to Google Drive. Type <code>/help </code> for Help`, {
                     parse_mode: 'HTML'
-                }).catch(err=> log.error(err.message))
+                }).catch(err => log.error(err.message))
                 break
             }
             case '/cron': {
@@ -64,7 +64,7 @@ bot.on('text', async (message) => {
                             switch_inline_query_current_chat: ''
                         }]]
                     }
-                }).catch(err=>log.error(err.message))
+                }).catch(err => log.error(err.message))
                 break
             }
             case '/help': {
@@ -75,7 +75,7 @@ bot.on('text', async (message) => {
                             switch_inline_query_current_chat: '/'
                         }]]
                     }
-                }).catch(err=>log.error(err.message))
+                }).catch(err => log.error(err.message))
                 break
             }
             case  String(message_text.match(/^magnet:.*/ig)): {
@@ -93,7 +93,7 @@ bot.on('text', async (message) => {
 })
 
 bot.on('edited_message_text', ({chat: {id: chat_id}, text}) => {
-    chatSearch(chat_id, text).catch(err=>log.error(err.message))
+    chatSearch(chat_id, text).catch(err => log.error(err.message))
 })
 
 async function chatSearch(chat_id, message_text) {
@@ -195,7 +195,7 @@ bot.on('callback_query', async (callback) => {
                         }]]
                     }
 
-                }).catch(err=>log.error(err.message))
+                }).catch(err => log.error(err.message))
             } else {
                 bot.sendMessage(chat_id, message, {
                     parse_mode: 'HTML', cache_time: 0, "reply_markup": {
@@ -211,6 +211,7 @@ bot.on('callback_query', async (callback) => {
     }
 })
 
+let availableTorrents
 bot.on('inline_query', async ({query, id: query_id}) => {
     if (/^\//.test(query)) {
         let inline_result = [], result_array = [{
@@ -271,7 +272,7 @@ bot.on('inline_query', async ({query, id: query_id}) => {
                     )
                 })
                 bot.answerInlineQuery(query_id, response, {cache_time: 10})
-                    .then(_ => chosenInlineResults(data))
+                    .then(_ => availableTorrents = data)
                     .catch(err => log.error(err.message))
             })
             .catch(err => {
@@ -282,32 +283,30 @@ bot.on('inline_query', async ({query, id: query_id}) => {
                         title: `No results found for ${query}`,
                         description: "Try checking for typing errors or try another search term.",
                         message_text: query || ' '
-                    }]).catch(err=>log.error(err.message))
+                    }]).catch(err => log.error(err.message))
                 }
                 log.error(err.message)
             })
     }
 })
 
-function chosenInlineResults(availableTorrents) {
-    bot.on('chosen_inline_result', async (chosen_Inline) => {
-        try {
-            const {query, result_id, from: {id: chat_id}} = chosen_Inline
-            if ((/^\//g).test(query)) return
-            if (!await userDb.findOne({chat_id: chat_id, token: {$ne: null}})) {
-                bot.sendMessage(chat_id, 'You\'ll have to authenticate your account before downloading any file.')
-                    .then(() => driveInt(chosen_Inline, bot))
-                    .catch((err) => log.error(err.message))
-            } else {
-                availableTorrents[result_id] ?
-                    download(availableTorrents[result_id].magnet, bot, chat_id)
-                    : null
-            }
-        } catch (err) {
-            log.error(err)
+bot.on('chosen_inline_result', async (chosen_Inline) => {
+    try {
+        const {query, result_id, from: {id: chat_id}} = chosen_Inline
+        if ((/^\//g).test(query)) return
+        if (!await userDb.findOne({chat_id: chat_id, token: {$ne: null}})) {
+            bot.sendMessage(chat_id, 'You\'ll have to authenticate your account before downloading any file.')
+                .then(() => driveInt(chosen_Inline, bot))
+                .catch((err) => log.error(err.message))
+        } else {
+            availableTorrents[result_id] ?
+                download(availableTorrents[result_id].magnet, bot, chat_id)
+                : null
         }
-    })
-}
+    } catch (err) {
+        log.error(err)
+    }
+})
 
 nodeCron.schedule('0 */6 * * *', () => {
     cron_job(bot).catch(err => log.error(err))
