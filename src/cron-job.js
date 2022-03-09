@@ -97,7 +97,7 @@ async function cron_download(bot) {
                                         : null
                                     : null
                             })
-                            element ? download(element.magnet, bot, chat_id, String(_id)) : log.warn(`No result found matching ${title}`)
+                            element ? download(element.magnet, bot, chat_id, _id) : log.warn(`No result found matching ${title}`)
 
                         })
                     : log.warn(`Already downloaded ${title}`)

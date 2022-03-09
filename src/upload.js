@@ -244,6 +244,7 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
         } else if (fs.statSync(torrent_path).isFile()) {
             upload_promise.push(uploadFile(torrent_path, name))
         }
+
         //create folder for the torrent
         async function makeDir(dirName, parent) {
             (!parent) ? parent = drive_id : null
@@ -265,7 +266,7 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
 
         async function uploadFile(filePath, filename, id) {
             return new Promise(async (resolve, reject) => {
-                let fsMedia, parent = (!id) ? drive_id : id;
+                let fsMedia, last_time = Date.now(), parent = (!id) ? drive_id : id;
                 fs.statSync(filePath).isFile()
                     ? fsMedia = {
                         body: await fs.createReadStream(filePath)
@@ -301,12 +302,14 @@ Eta: {eta_formatted}`,
                             total_pieces: fs.statSync(filePath).size,
                             name: filename
                         })
-                        progress.on('redraw-post', async () => {
-                            await bot.editMessageText(progress.lastDrawnString, {
-                                chat_id: chat_id,
-                                message_id: message_id
-                            }).catch((err) => log.error(err.message))
-                        })
+                        Date.now() > (last_time + 1000)
+                            ? (async () => {
+                                last_time = Date.now()
+                                await bot.editMessageText(progress.lastDrawnString, {
+                                    chat_id: chat_id,
+                                    message_id: message_id
+                                }).catch((err) => log.error(err.message))
+                            })() : null
                     },
                     retryConfig: {
                         retry: 10, retryDelay: 2000, onRetryAttempt: (err) => {

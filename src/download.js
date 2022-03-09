@@ -23,52 +23,69 @@ exports.download = async (magnet, bot, chat_id, _id) => {
             path: path.join(__dirname, 'downloads'),
             trackers: trackers,
         });
+
         const progress = new cliProgress.SingleBar({
             format: `Downloading {name}
 {bar}| {percentage}%
 {pieces_count}/{total_pieces} Chunks || Speed: {speed}MB/s || Eta: {eta_formatted}`,
             barCompleteChar: '\u2588',
             barIncompleteChar: '\u2591',
-            stopOnComplete:true,
-            clearOnComplete:true,
-            etaBuffer:20,
-            barsize:30,
+            stopOnComplete: true,
+            clearOnComplete: true,
+            etaBuffer: 20,
+            barsize: 30,
             fps: 1 //reduce amount draws per second
         });
+
         engine.on('ready', async () => {
             let {length, pieceLength, lastPieceLength} = engine.torrent,
                 totalPieces = ((length - lastPieceLength) / pieceLength) + 1,
-                pieceCount = 0, {message_id} = {}
+                pieceCount = 0, reply_message, last_date = Date.now()
             progress.start(100, 0, {
                 speed: 0
             })
-            chat_id ? {message_id} = await bot.sendMessage(chat_id, `Download started for ${engine.torrent.name}`)
-                .catch(err => log.error(err.message)) : undefined
+            chat_id
+                ? reply_message = await bot.sendMessage(chat_id, `Download started for ${engine.torrent.name}`)
+                    .catch(err => log.error(err.message))
+                : undefined
             const {files} = engine
             files.forEach((file) => {
                 log.info('filename:', file.name)
                 file.select()
             })
             engine.on('download', async () => {
-                    progress.update(Math.round((pieceCount * 100) / totalPieces), {
-                        pieces_count: pieceCount,
-                        total_pieces: totalPieces,
-                        speed: (engine.swarm.downloadSpeed() * 0.000001).toFixed(2),
-                        name: engine.torrent.name
-                    })
-                progress.on('redraw-post', async () => {
-                    await bot.editMessageText(progress.lastDrawnString, {
-                        chat_id: chat_id,
-                        message_id: message_id
-                    }).catch((err) => log.error(err.message))
+                progress.update(Math.round((pieceCount * 100) / totalPieces), {
+                    pieces_count: pieceCount,
+                    total_pieces: totalPieces,
+                    speed: (engine.swarm.downloadSpeed() * 0.000001).toFixed(2),
+                    name: engine.torrent.name
                 })
+                Date.now() > (last_date + 1000)
+                    ? (async () => {
+                        last_date = Date.now()
+                        await bot.editMessageText(progress.lastDrawnString, {
+                            chat_id: chat_id,
+                            message_id: reply_message.message_id
+                        })
+                            .catch((err) => {
+                                progress.updateETA()
+                                log.error(err.message)
+                            })
+                    })()
+                    : null
                 pieceCount++
             })
             engine.on('idle', () => {
-                message_id ?
-                    bot.editMessageText(`Download done for ${engine.torrent.name}`, {
+                progress.update(100,{
+                    pieces_count: totalPieces,
+                    total_pieces: totalPieces,
+                    speed: (engine.swarm.downloadSpeed() * 0.000001).toFixed(2),
+                    name: engine.torrent.name
+                })
+                reply_message.message_id ?
+                    bot.editMessageText(progress.lastDrawnString, {
                         chat_id: chat_id,
-                        message_id: message_id
+                        message_id: reply_message.message_id
                     }).catch(err => log.error(err.message))
                     : chat_id ? bot.sendMessage(chat_id, `Download done for ${engine.torrent.name}`)
                         .catch(err => log.error(err.message)) : undefined
@@ -76,7 +93,7 @@ exports.download = async (magnet, bot, chat_id, _id) => {
                     let torrent = {
                         name: engine.torrent.name,
                         path: path.join(__dirname, 'downloads', engine.torrent.name),
-                        message_id: message_id
+                        message_id: reply_message.message_id
                     }
                     upload(torrent, bot, chat_id, _id)
                 })
