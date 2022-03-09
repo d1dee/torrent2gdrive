@@ -34,6 +34,7 @@ exports.download = async (magnet, bot, chat_id, _id) => {
             clearOnComplete: true,
             etaBuffer: 20,
             barsize: 30,
+            hideCursor: true,
             fps: 1 //reduce amount draws per second
         });
 
