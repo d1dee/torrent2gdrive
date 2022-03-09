@@ -5,7 +5,8 @@
   "main": "./src/index.js",
   "nodemonConfig": {
     "ignore": [
-      "tmdb.json"
+      "tmdb.json",
+      "trackers.json"
     ],
     "delay": 2
   },
