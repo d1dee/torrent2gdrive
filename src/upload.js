@@ -282,17 +282,18 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                     barCompleteChar: '\u2588',
                     barIncompleteChar: '\u2591',
                     hideCursor: true,
-                    stopOnComplete:true,
-                    clearOnComplete:true,
-                    noTTYOutput:true,
-                    notTTYSchedule:1000,
-                    etaBuffer:20,
+                    stopOnComplete: true,
+                    clearOnComplete: true,
+                    noTTYOutput: true,
+                    notTTYSchedule: 1000,
+                    etaBuffer: 20,
                     barsize: 30,
                     fps: 1 //reduce amount draws per second
                 })
                 progress.start(100, 0, {
                     speed: 0
                 })
+                let previous_draw = progress.lastDrawnString
                 drive.files.create({
                     supportsAllDrives: true, //allows uploading to TeamDrive
                     requestBody: {
@@ -307,13 +308,16 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                             name: filename
                         })
                         Date.now() > (last_time + 1000)
-                            ? (async () => {
-                                last_time = Date.now()
-                                await bot.editMessageText(progress.lastDrawnString, {
-                                    chat_id: chat_id,
-                                    message_id: message_id
-                                }).catch((err) => log.error(err.message))
-                            })() : null
+                            ? previous_draw !== progress.lastDrawnString
+                                ? (async () => {
+                                    last_time = Date.now()
+                                    await bot.editMessageText(progress.lastDrawnString, {
+                                        chat_id: chat_id,
+                                        message_id: message_id
+                                    }).catch((err) => log.error(err.message))
+                                })()
+                                : null
+                            : null
                     },
                     retryConfig: {
                         retry: 10, retryDelay: 2000, onRetryAttempt: (err) => {

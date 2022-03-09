@@ -31,11 +31,11 @@ exports.download = async (magnet, bot, chat_id, _id) => {
             barCompleteChar: '\u2588',
             barIncompleteChar: '\u2591',
             hideCursor: true,
-            stopOnComplete:true,
-            clearOnComplete:true,
-            noTTYOutput:true,
-            notTTYSchedule:1000,
-            etaBuffer:20,
+            stopOnComplete: true,
+            clearOnComplete: true,
+            noTTYOutput: true,
+            notTTYSchedule: 1000,
+            etaBuffer: 20,
             barsize: 30,
             fps: 1 //reduce amount draws per second
         });
@@ -43,11 +43,11 @@ exports.download = async (magnet, bot, chat_id, _id) => {
         engine.on('ready', async () => {
             let {length, pieceLength, lastPieceLength} = engine.torrent,
                 totalPieces = ((length - lastPieceLength) / pieceLength) + 1,
-                pieceCount = 0, reply_message, last_date = Date.now()
+                pieceCount = 0, reply_message
             progress.start(100, 0, {
                 speed: 0
             })
-            reply_message =  chat_id
+            reply_message = chat_id
                 ? await bot.sendMessage(chat_id, `Download started for ${engine.torrent.name}`)
                     .catch(err => log.error(err.message))
                 : undefined
@@ -56,6 +56,7 @@ exports.download = async (magnet, bot, chat_id, _id) => {
                 log.info('filename:', file.name)
                 file.select()
             })
+            let last_date = Date.now(), previous_draw = progress.lastDrawnString
             engine.on('download', async () => {
                 progress.update(Math.round((pieceCount * 100) / totalPieces), {
                     pieces_count: pieceCount,
@@ -64,22 +65,24 @@ exports.download = async (magnet, bot, chat_id, _id) => {
                     name: engine.torrent.name
                 })
                 Date.now() > (last_date + 1000)
-                    ? (async () => {
-                        last_date = Date.now()
-                        await bot.editMessageText(progress.lastDrawnString, {
-                            chat_id: chat_id,
-                            message_id: reply_message.message_id
-                        })
-                            .catch((err) => {
-                                progress.updateETA()
-                                log.error(err.message)
-                            })
-                    })()
-                    : null
-                pieceCount++
+                    ? previous_draw !== progress.lastDrawnString
+                        ? (async () => {
+                            last_date = Date.now()
+                            await bot.editMessageText(progress.lastDrawnString, {
+                                chat_id: chat_id,
+                                message_id: reply_message.message_id
+                            }).then(_ => previous_draw = progress.lastDrawnString)
+                                .catch((err) => {
+                                    progress.updateETA()
+                                    log.error(err.message)
+                                })
+                        })()
+                        : null
+                    :null
+                    pieceCount++
             })
             engine.on('idle', () => {
-                progress.update(100,{
+                progress.update(100, {
                     pieces_count: totalPieces,
                     total_pieces: totalPieces,
                     speed: (engine.swarm.downloadSpeed() * 0.000001).toFixed(2),
