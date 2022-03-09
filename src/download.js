@@ -39,7 +39,7 @@ exports.download = async (magnet, bot, chat_id, _id) => {
             noTTYOutput:true,
             notTTYSchedule:1000,
             etaBuffer:20,
-            barsize:20,
+            barsize:30,
         });
 
         engine.on('ready', async () => {
@@ -60,11 +60,7 @@ exports.download = async (magnet, bot, chat_id, _id) => {
                 file.select()
             })
 
-            let previous_date = Date.now()
-
             engine.on('download', async () => {
-                if (Date.now() >= (previous_date + 1000)) {
-                    previous_date = Date.now()
 
                     progress.update(Math.round((pieceCount * 100) / totalPieces), {
                         pieces_count: pieceCount,
@@ -72,14 +68,14 @@ exports.download = async (magnet, bot, chat_id, _id) => {
                         speed: (engine.swarm.downloadSpeed() * 0.000001).toFixed(2),
                         name: engine.torrent.name
                     })
-
-                    await  bot.editMessageText(progress.lastDrawnString, {
+                progress.on('redraw-post', async () => {
+                    await bot.editMessageText(progress.lastDrawnString, {
                         chat_id: chat_id,
                         message_id: message_id
                     }).catch((err) => log.error(err.message))
 
                     console.clear()
-                }
+                })
                 pieceCount++
             })
             engine.on('idle', () => {

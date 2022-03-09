@@ -279,17 +279,16 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
 
                 if (!fsMedia) return
 
-                let previous_date = Date.now()
                 const progress = new cliProgress.SingleBar({
                     format: `Uploading {name}
 {bar}| {percentage}% 
 Eta: {eta_formatted}`,
                     barCompleteChar: '\u2588',
                     barIncompleteChar: '\u2591',
-                    hideCursor: true,
                     stopOnComplete: true,
                     clearOnComplete: true,
-                    barsize: 20
+                    barsize: 30,
+                    fps: 1
                 })
                 progress.start(100, 0, {
                     speed: 0
@@ -303,20 +302,17 @@ Eta: {eta_formatted}`,
                     }, media: fsMedia
                 }, {
                     onUploadProgress: async ({bytesRead}) => {
-                        if (Date.now() >= (previous_date + 1000)) {
-                            previous_date = Date.now()
-
-                            progress.update(Math.round((bytesRead * 100) / fs.statSync(filePath).size), {
-                                pieces_count: bytesRead,
-                                total_pieces: fs.statSync(filePath).size,
-                                name: filename
-                            })
+                        progress.update(Math.round((bytesRead * 100) / fs.statSync(filePath).size), {
+                            pieces_count: bytesRead,
+                            total_pieces: fs.statSync(filePath).size,
+                            name: filename
+                        })
+                        progress.on('redraw-post', async () => {
                             await bot.editMessageText(progress.lastDrawnString, {
                                 chat_id: chat_id,
                                 message_id: message_id
                             }).catch((err) => log.error(err.message))
-                            console.clear()
-                        }
+                        })
                     },
                     retryConfig: {
                         retry: 10, retryDelay: 2000, onRetryAttempt: (err) => {
@@ -342,8 +338,8 @@ Eta: {eta_formatted}`,
                         chat_id: chat_id, message_id: message_id
                     }).catch(err => log.error(err.message))
                 })
-                if (_id) {
-                    await db.findOne({_id: _id})
+                _id
+                    ? db.findOne({_id: _id})
                         .then(async (doc) => {
                             const {episode} = doc;
                             await db.updateOne({_id: _id}, {
@@ -357,8 +353,8 @@ Eta: {eta_formatted}`,
                             }).catch((err) => {
                                 log.error(err)
                             })
-                        })
-                }
+                        }) : null
+
             }).catch(err => log.error(err))
     } catch (err) {
         log.error(err)
