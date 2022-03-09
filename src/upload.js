@@ -278,8 +278,7 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
 
                 const progress = new cliProgress.SingleBar({
                     format: `Uploading {name}
-{bar}| {percentage}% 
-Eta: {eta_formatted}`,
+{bar}| {percentage}% Eta: {eta_formatted}`,
                     barCompleteChar: '\u2588',
                     barIncompleteChar: '\u2591',
                     hideCursor: true,

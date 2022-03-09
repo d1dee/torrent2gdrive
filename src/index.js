@@ -48,15 +48,15 @@ bot.on('text', async (message) => {
                 cron_job(bot)
                 break
             }
-            case '/auth_gdrive': {
+            case '/auth-gdrive': {
                 driveInt(message, bot)
                 break
             }
-            case '/list_team_drive': {
+            case '/list-team-drive': {
                 await listTeamDrive(message, bot)
                 break
             }
-            case'/inline_search': {
+            case'/inline-search': {
                 bot.sendMessage(chat_id, 'Click below to search using inline mode', {
                     reply_markup: {
                         inline_keyboard: [[{
@@ -223,7 +223,7 @@ bot.on('inline_query', async ({query, id: query_id}) => {
             description: 'Get a run-down of all supported features.'
         }, {
             title: 'Inline Search',
-            command: '/inline_search',
+            command: '/inline-search',
             description: 'Use inline search to directly search for torrent files'
         }, {
             title: 'List Team Drives',
