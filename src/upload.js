@@ -266,7 +266,8 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
 
         async function uploadFile(filePath, filename, id) {
             return new Promise(async (resolve, reject) => {
-                let fsMedia, last_time = Date.now(), parent = (!id) ? drive_id : id;
+                let fsMedia, last_time = Date.now(),
+                    parent = (!id) ? drive_id : id;
                 fs.statSync(filePath).isFile()
                     ? fsMedia = {
                         body: await fs.createReadStream(filePath)
@@ -342,12 +343,10 @@ Eta: {eta_formatted}`,
                 _id
                     ? await db.findOne({_id: _id})
                         .then(async (doc) => {
-                            console.log(doc)
-                            await db.updateOne({_id: _id}, {
+                            await db.updateOne({_id: doc._id}, {
                                 download: {
                                     episode: doc.episode.last_episode,
                                     file_name: name,
-                                    parent_folder_id: parent,
                                     downloaded: true,
                                     download_date: Date.now(),
                                 }
