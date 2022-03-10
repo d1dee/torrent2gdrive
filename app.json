@@ -1,0 +1,17 @@
+{
+  "name": "Telegram to Google Drive bot",
+  "description": "Telegram bot to download and upload torrents to Google Drive",
+  "repository": "https://github.com/d1dee/torrent2gdrive",
+  "logo": "http://pngimg.com/uploads/telegram/telegram_PNG36.png",
+  "keywords": [
+    "node",
+    "telegram",
+    "node-telegram-bot",
+    "bot"
+  ],
+  "env": {
+    "TELEGRAM_API": {
+      "description": "Telegram API key"
+    }
+  }
+}
