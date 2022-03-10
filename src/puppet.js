@@ -4,6 +4,7 @@ const {path} = require("file");
 
 let tmdb_config = JSON.parse(fs.readFileSync(path.join(__dirname, 'tmdb.json'), {encoding: 'utf8'}))
 const {images: {secure_base_url}} = tmdb_config[0], {genres} = tmdb_config[1]
+const log = require('loglevel');
 /**
  *
  * @param query {String || Object} if a string is supplied, this will be the search term to request from TMDB.
@@ -13,7 +14,7 @@ const {images: {secure_base_url}} = tmdb_config[0], {genres} = tmdb_config[1]
 
 exports.movieIndex = async (query) => {
     const {tmdb_id, media_type} = query
-    console.log(query)
+    log.info(query)
     if (tmdb_id && media_type) {
         return new Promise(async (resolve, reject) => {
             let data
@@ -22,7 +23,7 @@ exports.movieIndex = async (query) => {
                     .then((response) => {
                         data = response.data
                     }).catch(err => {
-                        console.log(err);
+                        log.error(err);
                         reject({axios_error: true})
                     })
             } else if (media_type === 'tv') {
@@ -31,8 +32,8 @@ exports.movieIndex = async (query) => {
                         data = response.data
                     })
                     .catch(err => {
-                        console.log(err);
-                        reject({axios_error:true})
+                        log.error(err);
+                        reject({axios_error: true})
                     })
             }
             const {
@@ -62,7 +63,7 @@ exports.movieIndex = async (query) => {
                 vote_average
             } = data;
             let genre = genres.map((element) => element.name)
-            !data ? reject({message: 'No response received',code:1}) : resolve({
+            !data ? reject({message: 'No response received', code: 1}) : resolve({
                 media_type,
                 adult,
                 belongs_to_collection,
@@ -90,47 +91,96 @@ exports.movieIndex = async (query) => {
         })
     } else {
         return new Promise((resolve, reject) => {
-            axios.get(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB_API}&query=${query}&page=1&include_adult=true`)
-                .then(({data}) => {
-                    const {results, total_results} = data;
+            multiSearch(query.toString().trim())
+                .then((results) => {
                     let return_data = []
-                    if (!total_results) reject({
-                        message: `No results found for ${query}`
-                    })
+                    function returnData(element) {
+                        return_data.push({
+                            adult: element.adult,
+                            tmdb_id: element.id,
+                            backdrop_path: element.backdrop_path,
+                            genre: genre_to_string(element.genre_ids),
+                            original_language: element.original_language,
+                            original_title: element.original_title || element.original_name,
+                            overview: element.overview,
+                            popularity: element.popularity,
+                            poster_path: secure_base_url + '/original/' + element.poster_path,
+                            release_date: element.release_date || element.first_air_date,
+                            title: element.title || element.name,
+                            vote_average: element.vote_average,
+                            media_type: element.release_date ? 'movie' : 'tv'
+                        })
+                    }
+
                     results.forEach((element) => {
                         if (element.media_type === 'person') return
-                        if (element.popularity > 5) {
-                            return_data.push({
-                                adult: element.adult,
-                                tmdb_id: element.id,
-                                backdrop_path: element.backdrop_path,
-                                genre: genre_to_string(element.genre_ids),
-                                original_language: element.original_language,
-                                original_title: element.original_title || element.original_name,
-                                overview: element.overview,
-                                popularity: element.popularity,
-                                poster_path: secure_base_url + '/original/' + element.poster_path,
-                                release_date: element.release_date || element.first_air_date,
-                                title: element.title || element.name,
-                                vote_average: element.vote_average,
-                                media_type: element.media_type
-                            })
-                        }
+
+                        (results.length > 5)
+                            ? (element.popularity > 20)
+                                ? returnData(element)
+                                : Date.parse(element.release_date ? element.release_date : element.first_air_date) > Date.now()
+                                    ? returnData(element)
+                                    : null
+                            : returnData(element)
                     })
                     return_data = return_data.sort((a, b) => {
                         return b.popularity - a.popularity
                     })
-                   return_data.length === 0 ? reject({
-                       message: `No results found for ${query}`
-                   }) : resolve (return_data)
+                    return_data.length === 0 ? reject({
+                        message: `No results found for ${query}`
+                    }) : resolve(return_data)
                 })
                 .catch(err => {
-                    console.log(err)
+                    log.error(err)
                     reject({message: err.message})
                 })
         })
     }
 }
+
+
+async function multiSearch(query) {
+    return new Promise((resolve, reject) => {
+        let year = (query.match(/\d{4}$/g))
+        year
+            ? query.match(/[a-z^\W]{3}/gmi)
+                ? query = query.replace(year.toString(), '')
+                : year = ''
+            : null
+        let promise = []
+        promise.push(axios.get(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API}&language=en-US&page=1&query=${query}&include_adult=false&${year ? 'year=' + year.toString() : ''}`))
+        promise.push(axios.get(`https://api.themoviedb.org/3/search/tv?api_key=${TMDB_API}&language=en-US&page=1&query=${query}&include_adult=false&${year ? 'first_air_date_year=' + year.toString : ''}`))
+
+        Promise.all(promise)
+            .then((response) => {
+                let result = response.map((element) => {
+                    return element.data.results
+                }).flat()
+                !result.length ? reject({message: 'No response received', code: 1}) : null
+                resolve(year
+                    ? result.filter((element) => {
+                        let release_year = element.first_air_date
+                            ? element.first_air_date
+                            : element.release_date
+                        return release_year
+                            ? (release_year.match(new RegExp('^' + year, 'g')))
+                                ? element
+                                : undefined
+                            : undefined
+                    })
+                    : result
+                )
+            })
+            .catch(err => {
+                reject({
+                    message: 'Axios Error',
+                    error: err
+                })
+            })
+    })
+}
+
+
 /**
  *
  * @param query {String} Search term
@@ -139,16 +189,32 @@ exports.movieIndex = async (query) => {
  */
 exports.torrentDownload = async (query, site) => {
     return new Promise((resolve, reject) => {
-        console.log(query)
+        log.info(query)
         let returnData = []
         if (!site) site = 'all'
         axios.get(`https://d1dee-api-d1dee.koyeb.app/api/${site}/${query}`)
             .then(({data}) => {
-                if (!data) reject({search_error: 'No data received'})
-                if (Array.isArray(data[0])) {
-                    data.forEach((e) => {
-                        if (!e) return
-                        e.forEach(({DateUploaded, Leechers, Magnet, Name, Seeders, Size, UploadedBy, Category}) => {
+                data.error
+                    ? reject({search_error: 'No data received'})
+                    : (Array.isArray(data[0]))
+                        ? data.forEach((e) => {
+                            if (!e) return
+                            e.forEach(({DateUploaded, Leechers, Magnet, Name, Seeders, Size, UploadedBy, Category}) => {
+                                if (!(/^magnet:\?/i.test(Magnet)) || !Seeders || !Name || !Size ||
+                                    parseInt(Seeders) < 20 || parseInt(Seeders) > 10000 || parseInt(Seeders) < parseInt(Leechers)) return
+                                returnData.push({
+                                    name: Name,
+                                    size: Size,
+                                    age: DateUploaded ? DateUploaded : '',
+                                    seeds: Seeders,
+                                    magnet: Magnet,
+                                    provider: UploadedBy ? UploadedBy : '',
+                                    leeches: Leechers ? Leechers : '',
+                                    type: Category ? Category : ''
+                                })
+                            })
+                        })
+                        : data.forEach(({DateUploaded, Leechers, Magnet, Name, Seeders, Size, UploadedBy, Category}) => {
                             if (!(/^magnet:\?/i.test(Magnet)) || !Seeders || !Name || !Size ||
                                 parseInt(Seeders) < 20 || parseInt(Seeders) > 10000 || parseInt(Seeders) < parseInt(Leechers)) return
                             returnData.push({
@@ -162,24 +228,8 @@ exports.torrentDownload = async (query, site) => {
                                 type: Category ? Category : ''
                             })
                         })
-                    })
-                } else {
-                    data.forEach(({DateUploaded, Leechers, Magnet, Name, Seeders, Size, UploadedBy, Category}) => {
-                        if (!(/^magnet:\?/i.test(Magnet)) || !Seeders || !Name || !Size ||
-                            parseInt(Seeders) < 20 || parseInt(Seeders) > 10000 || parseInt(Seeders) < parseInt(Leechers)) return
-                        returnData.push({
-                            name: Name,
-                            size: Size,
-                            age: DateUploaded ? DateUploaded : '',
-                            seeds: Seeders,
-                            magnet: Magnet,
-                            provider: UploadedBy ? UploadedBy : '',
-                            leeches: Leechers ? Leechers : '',
-                            type: Category ? Category : ''
-                        })
-                    })
-                }
-                console.log('Got ', returnData.length, ' for ', query)
+
+                log.info('Got ', returnData.length, ' for ', query)
                 resolve((returnData.sort((a, b) => {
                     return b.seeds - a.seeds;
                 })).slice(0, 50))

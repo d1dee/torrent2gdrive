@@ -1,5 +1,6 @@
 const db = require('./schemas/moviesSchema')
 const {movieIndex} = require("./puppet");
+const log = require('loglevel');
 
 exports.scheduler = (results, bot, chat_id, _id) => {
     return new Promise(async (resolve, reject) => {
@@ -17,7 +18,7 @@ exports.scheduler = (results, bot, chat_id, _id) => {
             tmdb_id,
             media_type,
             original_title
-        } = await movieIndex(results).catch(err => console.log(err))
+        } = await movieIndex(results).catch(err => log.error(err))
         console.log(title)
         let {
             air_date: last_episode_air_date,
@@ -39,7 +40,7 @@ exports.scheduler = (results, bot, chat_id, _id) => {
                         (release_date > Date.now()) ? `Next download will be on ${release_date}`
                             : next_episode_air_date ? `Next download for S${next_episode_season_number} E${next_episode_number} will be on ${next_episode_air_date}`
                                 : 'Awaiting announcement for the next release date.'}`)
-                        .catch((err) => console.log(err.message))
+                        .catch((err) => log.error(err.message))
                     : await db.updateMany({tmdb_id: tmdb_id}, {
                         episode: (media_type === 'tv')
                             ? {
@@ -71,7 +72,7 @@ exports.scheduler = (results, bot, chat_id, _id) => {
                     networks: networks
                 }).then(() => {
                     bot.sendMessage(chat_id, `${title || name || original_title || original_name} added to schedule`)
-                        .catch((err) => console.log(err.message))
+                        .catch((err) => log.error(err.message))
                 }).catch(err => {
                     reject(err)
                 })
