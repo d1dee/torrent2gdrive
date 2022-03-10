@@ -1,5 +1,5 @@
 # A Simple Torrent to Google Drive Bot   
-[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/d1dee/torrent2gdrive)
 
 A simple telegram bot that downloads torrent files and uploads them to Google Drive or Team drive if it exists.
 This came about due to limitations of other options out there, and as such, this bot has no limits except those imposed on by Heroku’s free tier plan.
