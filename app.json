@@ -12,6 +12,21 @@
   "env": {
     "TELEGRAM_API": {
       "description": "Telegram API key"
+    },
+    "TMDB_API": {
+      "description": "The Movie Database API key"
+    },
+    "MONGO": {
+      "description": "Mongo db url"
+    },
+    "CLIENTSECRET": {
+      "description": "Google drive CLIENTSECRET obtained from google drive auth 2.0 client"
+    },
+    "CLIENTID": {
+      "description": "Google drive CLIENTID obtained from google drive auth 2.0 client"
+    },
+    "REDIRECTURIS": {
+      "description": "Google drive REDIRECTURIS obtained from google drive auth 2.0 client"
     }
   }
 }
