@@ -255,7 +255,17 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                     parents: [`${parent}`], //parent folder where to upload or work on
                     mimeType: 'application/vnd.google-apps.folder',
                 }
-            }).catch(err => log.error(err))).data
+            }).catch(async (err) => {
+                log.error(err)
+                if (err.message === 'invalid_grant') {
+                    await userDb.updateOne({chat_id: chat_id}, {token: {}})
+                    await bot.sendMessage(chat_id, 'Try authenticating G-drive then re-download', {
+                        force_reply: true,
+                        input_field_placeholder: '/start'
+                    })
+                        .catch(err => log.error(err))
+                }
+            })).data
         }
 
         /**
@@ -323,19 +333,9 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                         retry: 10,
                         retryDelay: 2000,
                         onRetryAttempt: async (err) => {
-                            await bot.sendMessage(chat_id,`Upload failed for ${filename} 
+                            await bot.sendMessage(chat_id, `Upload failed for ${filename} 
                              err: ${err.message} retrying... `).catch(err => log.error(err.message))
                             log.error(err)
-/*
-                            if (err.message === 'invalid_grant') {
-                                await userDb.updateOne({chat_id: chat_id}, {token: {}})
-                                await bot.sendMessage(chat_id, 'Try authenticating G-drive', {
-                                    force_reply: true,
-                                    input_field_placeholder: '/start'
-                                })
-                                    .catch(err => log.error(err))
-                            }
-*/
                         }
                     }, retry: true
                 }, async (err) => {
