@@ -320,11 +320,22 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                             : null
                     },
                     retryConfig: {
-                        retry: 10, retryDelay: 2000, onRetryAttempt: (err) => {
-                            bot.editMessageText(`Upload failed for ${filename} retrying...`, {
-                                chat_id: chat_id, message_id: message_id
-                            }).catch(err => log.error(err.message))
+                        retry: 10,
+                        retryDelay: 2000,
+                        onRetryAttempt: async (err) => {
+                            await bot.sendMessage(chat_id,`Upload failed for ${filename} 
+                             err: ${err.message} retrying... `).catch(err => log.error(err.message))
                             log.error(err)
+/*
+                            if (err.message === 'invalid_grant') {
+                                await userDb.updateOne({chat_id: chat_id}, {token: {}})
+                                await bot.sendMessage(chat_id, 'Try authenticating G-drive', {
+                                    force_reply: true,
+                                    input_field_placeholder: '/start'
+                                })
+                                    .catch(err => log.error(err))
+                            }
+*/
                         }
                     }, retry: true
                 }, async (err) => {
@@ -360,7 +371,7 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
             }).catch(err => log.error(err))
     } catch (err) {
         log.error(err)
-        if (err === 'invalid_grant') {
+        if (err.message === 'invalid_grant') {
             await userDb.updateOne({chat_id: chat_id}, {token: {}})
             await bot.sendMessage(chat_id, 'Try authenticating G-drive', {
                 force_reply: true,
