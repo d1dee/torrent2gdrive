@@ -6,6 +6,7 @@ const fs = require("fs");
 const {path} = require("file");
 const {scheduler} = require("./schedule");
 const log = require('loglevel');
+const {setAuth} = require("./upload");
 
 const {TMDB_API} = process.env
 
@@ -16,6 +17,7 @@ const {TMDB_API} = process.env
 exports.cron_job = async (bot) => {
     exports.tmdb_config()
     trackers()
+    setAuth()
     log.info('Cron job running...')
     try {
         let to_download = await db.find({release_date: {$lte: Date.now()}})
@@ -58,6 +60,7 @@ exports.cron_job = async (bot) => {
 async function cron_download(bot) {
     try {
         let to_download = await db.find({release_date: {$lte: Date.now()}})
+            .catch(err => log.warn(err))
 
         to_download.forEach(async (element) => {
             const {
@@ -79,6 +82,7 @@ async function cron_download(bot) {
                         });
                         element ? download(element.magnet, bot, chat_id, _id) : log.warn(`No result found matching ${title}`)
                     })
+                    .catch(err=> log.error(err))
 
             } else if (media_type === 'tv') {
 
@@ -100,6 +104,8 @@ async function cron_download(bot) {
                             element ? download(element.magnet, bot, chat_id, _id) : log.warn(`No result found matching ${title}`)
 
                         })
+                        .catch(err=> log.error(err))
+
                     : log.warn(`Already downloaded ${title}`)
             }
         })
@@ -115,8 +121,8 @@ async function cron_download(bot) {
  */
 exports.tmdb_config = async () => {
     let tmdb_file = []
-    let axios_promise = [axios.get(`https://api.themoviedb.org/3/configuration?api_key=${TMDB_API}`),
-        axios.get(`https://api.themoviedb.org/3/genre/movie/list?api_key=${TMDB_API}`)]
+    let axios_promise = [axios.get(`https://api.themoviedb.org/3/configuration?api_key=${TMDB_API}`).catch(err=>log.error(err.message)),
+        axios.get(`https://api.themoviedb.org/3/genre/movie/list?api_key=${TMDB_API}`).catch(err=>log.error(err.message))]
 
     await Promise.all(axios_promise)
         .then((results) => {
@@ -130,17 +136,17 @@ exports.tmdb_config = async () => {
 
 }
 
-function trackers (){
+function trackers() {
     try {
         axios.get('https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_all_ip.txt')
-            .then(async ({data})=>{
+            .then(async ({data}) => {
 
-                data = (data.toString().replace(/(\s)|('\\n')|\+/gm,'\'')).split('\'\'')
+                data = (data.toString().replace(/(\s)|('\\n')|\+/gm, '\'')).split('\'\'')
                 data.pop()
                 await fs.writeFileSync(path.join(__dirname, 'trackers.json'), JSON.stringify(data))
             })
-    }
-    catch (err) {
+            .catch(err=> log.error(err.message))
+    } catch (err) {
         log.error(err)
     }
 }

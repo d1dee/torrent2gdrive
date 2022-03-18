@@ -48,11 +48,11 @@ bot.on('text', async (message) => {
                 cron_job(bot)
                 break
             }
-            case '/authGDrive': {
+            case '/authgdrive': {
                 driveInt(message, bot)
                 break
             }
-            case '/listTeamDrive': {
+            case '/listteamdrive': {
                 await listTeamDrive(message, bot)
                 break
             }

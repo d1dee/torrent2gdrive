@@ -29,22 +29,21 @@ exports.driveInt = async (message, bot) => {
         let message_id
         userDb.findOne({chat_id: chat_id}).catch(err => log.error(err))
             .then(async docs => {
-
-
+                exports.setAuth(chat_id)
                 docs
                     ? await bot.sendMessage(chat_id, `User ${(first_name || username)} already exists${
-                            docs.token
-                                ? '.'
+                            docs?.token
+                                ? `. If you'd like to generate a new access token, click below:
+${authUrl}`
                                 : ` but Google drive is not yet authorized. To do so please click below:
 ${authUrl}`
                         }`,
-                        !docs.token
-                            ? {
-                                reply_markup: {
-                                    force_reply: true,
-                                    input_field_placeholder: "Paste you google auth code here"
-                                }
-                            } : {}
+                        {
+                            reply_markup: {
+                                force_reply: true,
+                                input_field_placeholder: "Paste you google auth code here"
+                            }
+                        }
                     ).then(message => message_id = message.message_id)
                         .catch(err => log.error(err.message))
                     : await bot.sendMessage(chat_id, `Click on the below link to authorize this app to write to your Google Drive ${authUrl}`, {
@@ -104,10 +103,12 @@ ${authUrl}`
 
 exports.setAuth = async (chat_id) => {
     try {
-        let {token} = await userDb.findOne({chat_id: chat_id, token: {$ne: null}})
+        console.log(chat_id)
+        let {token}= await userDb.findOne({chat_id: chat_id, token: {$ne: null}})
+        console.log('token?',token)
         oAuth2Client.setCredentials(JSON.parse(token));
     } catch (err) {
-        log.error(err)
+        log.error(err.message)
     }
 }
 
@@ -247,12 +248,12 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
 
         //create folder for the torrent
         async function makeDir(dirName, parent) {
-            (!parent) ? parent = drive_id : null
+            let parent_id  = parent ? parent : drive_id
             return (await drive.files.create({
                 supportsAllDrives: true, //allows uploading to TeamDrive
                 requestBody: {
                     name: dirName, //name the file will go by at Google Drive (extension determines the file type if mimetype is ignored)
-                    parents: [`${parent}`], //parent folder where to upload or work on
+                    parents: [`${parent_id}`], //parent folder where to upload or work on
                     mimeType: 'application/vnd.google-apps.folder',
                 }
             }).catch(async (err) => {

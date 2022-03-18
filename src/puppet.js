@@ -180,7 +180,6 @@ async function multiSearch(query) {
     })
 }
 
-
 /**
  *
  * @param query {String} Search term
@@ -192,7 +191,7 @@ exports.torrentDownload = async (query, site) => {
         log.info(query)
         let returnData = []
         if (!site) site = 'all'
-        axios.get(`https://d1dee-api-d1dee.koyeb.app/api/${site}/${query}`)
+        axios.get(`https://d1dee-api-d1dee.koyeb.app/api/${site}/${encodeURI(query)}`)
             .then(({data}) => {
                 data.error
                     ? reject({search_error: 'No data received'})
@@ -229,7 +228,7 @@ exports.torrentDownload = async (query, site) => {
                             })
                         })
 
-                log.info('Got ', returnData.length, ' for ', query)
+                log.info('Got ', returnData?.length, ' for ', query)
                 resolve((returnData.sort((a, b) => {
                     return b.seeds - a.seeds;
                 })).slice(0, 50))
