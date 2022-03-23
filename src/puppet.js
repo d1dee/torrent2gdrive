@@ -181,55 +181,38 @@ async function multiSearch(query) {
 }
 
 /**
- *
  * @param query {String} Search term
  * @param site {String=} Used when searching in a specific site
  * @returns {Promise<*[]>}
  */
 exports.torrentDownload = async (query, site) => {
     return new Promise((resolve, reject) => {
-        log.info(query)
-        let returnData = []
+        let return_data = []
         if (!site) site = 'all'
         axios.get(`https://d1dee-api-d1dee.koyeb.app/api/${site}/${encodeURI(query)}`)
             .then(({data}) => {
-                data.error
-                    ? reject({search_error: 'No data received'})
-                    : (Array.isArray(data[0]))
-                        ? data.forEach((e) => {
-                            if (!e) return
-                            e.forEach(({DateUploaded, Leechers, Magnet, Name, Seeders, Size, UploadedBy, Category}) => {
-                                if (!(/^magnet:\?/i.test(Magnet)) || !Seeders || !Name || !Size ||
-                                    parseInt(Seeders) < 20 || parseInt(Seeders) > 10000 || parseInt(Seeders) < parseInt(Leechers)) return
-                                returnData.push({
-                                    name: Name,
-                                    size: Size,
-                                    age: DateUploaded ? DateUploaded : '',
-                                    seeds: Seeders,
-                                    magnet: Magnet,
-                                    provider: UploadedBy ? UploadedBy : '',
-                                    leeches: Leechers ? Leechers : '',
-                                    type: Category ? Category : ''
-                                })
-                            })
-                        })
-                        : data.forEach(({DateUploaded, Leechers, Magnet, Name, Seeders, Size, UploadedBy, Category}) => {
-                            if (!(/^magnet:\?/i.test(Magnet)) || !Seeders || !Name || !Size ||
-                                parseInt(Seeders) < 20 || parseInt(Seeders) > 10000 || parseInt(Seeders) < parseInt(Leechers)) return
-                            returnData.push({
-                                name: Name,
-                                size: Size,
-                                age: DateUploaded ? DateUploaded : '',
-                                seeds: Seeders,
-                                magnet: Magnet,
-                                provider: UploadedBy ? UploadedBy : '',
-                                leeches: Leechers ? Leechers : '',
-                                type: Category ? Category : ''
-                            })
-                        })
-
-                log.info('Got ', returnData?.length, ' for ', query)
-                resolve((returnData.sort((a, b) => {
+                let flat_data = (Array.isArray(data))
+                    ? data.flat(1)
+                    : data
+                flat_data.forEach((element) => {
+                    if (!element) return
+                    const {DateUploaded, Leechers, Magnet, Name, Seeders, Size, UploadedBy, Category} = element
+                    if (!(/^magnet:\?/i.test(Magnet)) || !Seeders || !Name || !Size ||
+                        parseInt(Seeders) < 20 || parseInt(Seeders) > 10000 || parseInt(Seeders) < parseInt(Leechers)) return
+                    return_data.push({
+                        name: Name,
+                        size: Size,
+                        age: DateUploaded ? DateUploaded : '',
+                        seeds: Seeders,
+                        magnet: Magnet,
+                        provider: UploadedBy ? UploadedBy : '',
+                        leeches: Leechers ? Leechers : '',
+                        type: Category ? Category : ''
+                    })
+                })
+                console.log(return_data)
+                log.info('Got ', return_data.length, ' for ', query)
+                resolve((return_data.sort((a, b) => {
                     return b.seeds - a.seeds;
                 })).slice(0, 50))
             })
