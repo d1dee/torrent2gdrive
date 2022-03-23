@@ -210,7 +210,6 @@ exports.torrentDownload = async (query, site) => {
                         type: Category ? Category : ''
                     })
                 })
-                console.log(return_data)
                 log.info('Got ', return_data.length, ' for ', query)
                 resolve((return_data.sort((a, b) => {
                     return b.seeds - a.seeds;
