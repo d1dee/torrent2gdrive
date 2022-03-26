@@ -285,25 +285,8 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
 
                 if (!fsMedia) return
 
-                const progress = new progress_bar
-                progress.init(fs.statSync(filePath).size,`Uploading ${filename}: \n`)
-                /*cliProgress.SingleBar({
-                    format: `Uploading {name}
-{bar}| {percentage}% Eta: {eta_formatted}`,
-                    barCompleteChar: '\u2588',
-                    barIncompleteChar: '\u2591',
-                    hideCursor: true,
-                    stopOnComplete: true,
-                    clearOnComplete: true,
-                    noTTYOutput: true,
-                    notTTYSchedule: 1000,
-                    etaBuffer: 20,
-                    barsize: 30,
-                    fps: 1 //reduce amount draws per second
-                })*/
-                /* progress.start(100, 0, {
-                     speed: 0
-                 })*/
+                const progress = new progress_bar, file_size = fs.statSync(filePath).size
+                progress.init(file_size,`Uploading ${filename}: \n`)
                 let previous_draw = progress.lastDrawnString
                 drive.files.create({
                     supportsAllDrives: true, //allows uploading to TeamDrive
@@ -318,7 +301,7 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                             ? previous_draw !== progress?.lastDraw
                                 ? (async () => {
                                     last_time = Date.now()
-                                    await bot.editMessageText(progress.lastDraw, {
+                                    await bot.editMessageText(`${progress.lastDraw}\nChunks: ${bytesRead/file_size}`, {
                                         chat_id: chat_id,
                                         message_id: message_id
                                     }).catch((err) => log.error(err.message))
@@ -336,7 +319,6 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                         }
                     }, retry: true
                 }, async (err) => {
-                    //progress.stop();
                     (err)
                         ? reject(err)
                         : resolve('Success')
