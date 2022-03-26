@@ -193,7 +193,7 @@ exports.torrentDownload = async (query, site) => {
             .then(({data}) => {
                 let flat_data = (Array.isArray(data))
                     ? data.flat(1)
-                    : data
+                    : [data]
                 flat_data.forEach((element) => {
                     if (!element) return
                     const {DateUploaded, Leechers, Magnet, Name, Seeders, Size, UploadedBy, Category} = element

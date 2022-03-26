@@ -25,27 +25,12 @@ exports.download = async (magnet, bot, chat_id, _id) => {
         });
 
         const progress = new bar()
-        /*cliProgress.SingleBar({
-        format: `Downloading {name}
-{bar}| {percentage}%
-{pieces_count}/{total_pieces} Chunks || Speed: {speed}MB/s || Eta: {eta_formatted}`,
-        barCompleteChar: '\u2588',
-        barIncompleteChar: '\u2591',
-        hideCursor: true,
-        stopOnComplete: true,
-        clearOnComplete: true,
-        noTTYOutput: true,
-        notTTYSchedule: 1000,
-        etaBuffer: 20,
-        barsize: 30,
-        fps: 1 //reduce amount draws per second
-    });*/
 
         engine.on('ready', async () => {
             let {length, pieceLength, lastPieceLength} = engine.torrent,
                 totalPieces = ((length - lastPieceLength) / pieceLength) + 1,
                 pieceCount = 0, reply_message
-            progress.init(totalPieces, `Downloading ${engine?.torrent?.name}: \n`)
+            progress.init(totalPieces, `Downloading ${engine?.torrent?.name}: \n`,'\u2588','\u2591')
             reply_message = chat_id
                 ? await bot.sendMessage(chat_id, `Download started for ${engine?.torrent?.name}     Speed:${(engine?.swarm?.downloadSpeed() * 0.000001).toFixed(2)}MB/s`)
                     .catch(err => log.error(err.message))

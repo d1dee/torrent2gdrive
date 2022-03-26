@@ -286,8 +286,8 @@ exports.upload = async (torrent, bot, chat_id, _id) => {
                 if (!fsMedia) return
 
                 const progress = new progress_bar, file_size = fs.statSync(filePath).size
-                progress.init(file_size,`Uploading ${filename}: \n`)
-                let previous_draw = progress.lastDrawnString
+                progress.init(file_size,`Uploading ${filename}: \n`,'\u2588','\u2591')
+                let previous_draw = progress.lastDraw
                 drive.files.create({
                     supportsAllDrives: true, //allows uploading to TeamDrive
                     requestBody: {
