@@ -92,6 +92,10 @@ bot.on('text', async (message) => {
     }
 })
 
+/**
+ * catch all edited search queries
+ **/
+
 bot.on('edited_message_text', ({chat: {id: chat_id}, text}) => {
     chatSearch(chat_id, text).catch(err => log.error(err.message))
 })
