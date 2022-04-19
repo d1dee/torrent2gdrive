@@ -1,4 +1,4 @@
-const axios = require('axios'), {TMDB_API} = process.env;
+const axios = require('axios'), {TMDB_API, TORRENT_API} = process.env;
 const fs = require("fs");
 const {path} = require("file");
 
@@ -189,7 +189,7 @@ exports.torrentDownload = async (query, site) => {
     return new Promise((resolve, reject) => {
         let return_data = []
         if (!site) site = 'all'
-        axios.get(`https://d1dee-api-d1dee.koyeb.app/api/${site}/${encodeURI(query)}`)
+        axios.get(`${TORRENT_API}/api/${site}/${encodeURI(query)}`)
             .then(({data}) => {
                 let flat_data = (Array.isArray(data))
                     ? data.flat(1)
