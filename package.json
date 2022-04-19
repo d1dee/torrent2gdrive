@@ -19,7 +19,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "axios": "^0.26.0",
+    "axios": "^0.26.1",
     "cli-progress": "^3.10.0",
     "dotenv": "^16.0.0",
     "file": "^0.2.2",
